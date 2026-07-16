@@ -152,11 +152,33 @@ function parseLine(line, sessionId, seq) {
     return { events: [], nextSeq: seq }
   }
 
+  // [INVESTIGATE A] — /rename extraction.
+  // Format confirmed: type="system", subtype="local_command",
+  // content contains <command-name>/rename</command-name><command-args>new name</command-args>
+  // Same XML envelope as /color, /theme, etc.
+  if (type === 'system') {
+    const content = typeof obj.content === 'string' ? obj.content : ''
+    const nameMatch = content.match(/<command-name>\/?rename<\/command-name>/)
+    if (nameMatch) {
+      const argsMatch = content.match(/<command-args>([^<]*)<\/command-args>/)
+      const renamedTo = argsMatch ? argsMatch[1].trim() : ''
+      return { events: [], nextSeq: seq, renamedTo: renamedTo || null }
+    }
+    return { events, nextSeq: seq }
+  }
+
+  // [INVESTIGATE B] — /resume continuation detection.
+  // Format confirmed: if a line's inner sessionId field differs from the
+  // file-derived sessionId, the inner sessionId is the parent (source) session.
+  // This file is a continuation of that session. Extracted by the caller in
+  // electron.js, not here — parseLine returns sourceSessionId when present.
+  const innerSessionId = typeof obj.sessionId === 'string' ? obj.sessionId : null
+
   // Only process user and assistant lines.
-  // Skip: attachment, file-history-snapshot, system, permission-mode,
+  // Skip: attachment, file-history-snapshot, permission-mode,
   // last-prompt, and any unknown types.
   if (type !== 'user' && type !== 'assistant') {
-    return { events, nextSeq: seq }
+    return { events, nextSeq: seq, sourceSessionId: innerSessionId }
   }
 
   const message = obj.message

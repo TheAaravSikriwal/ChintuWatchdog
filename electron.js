@@ -87,6 +87,9 @@ ipcMain.handle('watchdog:get-initial-events', () => {
       let lastMsgIdStart = 0
       let lastMsgIdSeq = 0
       const subagentLinks = {}
+      let renamedTo = null
+      let continuationOf = null
+      let foundSourceSession = false
 
       // Initialize metadata from discovery
       if (!sessionMeta[session.sessionId]) {
@@ -114,6 +117,20 @@ ipcMain.handle('watchdog:get-initial-events', () => {
           subagentLinks[toolUseId] = subagentSessionId
         }
 
+        // Collect /rename display name (last rename wins)
+        if (result.renamedTo !== undefined && result.renamedTo !== null) {
+          renamedTo = result.renamedTo
+        }
+
+        // Continuation detection: if the inner sessionId differs from
+        // the file-derived sessionId, this file continues that session.
+        if (!foundSourceSession && result.sourceSessionId) {
+          foundSourceSession = true
+          if (result.sourceSessionId !== session.sessionId) {
+            continuationOf = result.sourceSessionId
+          }
+        }
+
         // Streaming dedup (Claude)
         if (result.messageId) {
           if (result.messageId === lastMsgId) {
@@ -133,18 +150,24 @@ ipcMain.handle('watchdog:get-initial-events', () => {
         }
       }
 
-      // Merge collected subagent links
+      // Merge collected metadata into session meta
       const metaKey = sessionId
-      if (Object.keys(subagentLinks).length > 0) {
-        if (!sessionMeta[metaKey]) {
-          sessionMeta[metaKey] = {
-            parentSessionId: session.parentSessionId || null,
-            subagentLinks: {},
-            renamedTo: null,
-            continuationOf: null,
-          }
+      if (!sessionMeta[metaKey]) {
+        sessionMeta[metaKey] = {
+          parentSessionId: session.parentSessionId || null,
+          subagentLinks: {},
+          renamedTo: null,
+          continuationOf: null,
         }
+      }
+      if (Object.keys(subagentLinks).length > 0) {
         Object.assign(sessionMeta[metaKey].subagentLinks, subagentLinks)
+      }
+      if (renamedTo) {
+        sessionMeta[metaKey].renamedTo = renamedTo
+      }
+      if (continuationOf) {
+        sessionMeta[metaKey].continuationOf = continuationOf
       }
     }
   }
