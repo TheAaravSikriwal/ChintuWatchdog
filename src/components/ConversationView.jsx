@@ -1,7 +1,12 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { computeSessionStatus, STATUS_LABELS, STATUS_COLORS } from '../utils/sessionStatus'
 import { eventPreview } from '../utils/plainEnglish'
+import { buildResultMap } from '../utils/resultPairing'
+import { useDurationTick } from '../hooks/useDurationTick'
 import InputArea from './InputArea'
+import MessageBubble from './MessageBubble'
+import ActionCard from './ActionCard'
+import DelegationBadge from './DelegationBadge'
 import './ConversationView.css'
 
 const AGENT_COLORS = {
@@ -32,21 +37,6 @@ const STATUS_BG = {
   unclean: 'rgba(239,68,68,0.15)',
 }
 
-function EventPlaceholder({ event }) {
-  const parts = []
-  parts.push(`[${event.kind}]`)
-  if (event.role) parts.push(`[${event.role}]`)
-  if (event.action) parts.push(`action:${event.action}`)
-  if (event.target) parts.push(`target:${event.target}`)
-  if (event.text) parts.push(event.text.slice(0, 80) + (event.text.length > 80 ? '…' : ''))
-  if (event.rawTool) parts.push(`tool:${event.rawTool}`)
-
-  return (
-    <div className={`event-placeholder kind-${event.kind}`}>
-      {parts.join(' ')}
-    </div>
-  )
-}
 
 export default function ConversationView({
   session,
@@ -62,6 +52,18 @@ export default function ConversationView({
   const scrollRef = useRef(null)
   const prevSessionIdRef = useRef(null)
   const [eventOffset, setEventOffset] = useState(0)
+  const durationTick = useDurationTick()
+
+  // Derive visible events and result map at hook level (before early returns)
+  const allEventsForMemo = session?.events ?? []
+  const totalEventsForMemo = allEventsForMemo.length
+  const startIdxForMemo = Math.max(0, totalEventsForMemo - RENDER_CAP - eventOffset)
+  const visibleEventsForMemo = allEventsForMemo.slice(startIdxForMemo)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const resultMap = useMemo(
+    () => buildResultMap(visibleEventsForMemo),
+    [sessionsVersion, startIdxForMemo]
+  )
 
   // Reset offset when session changes
   useEffect(() => {
@@ -139,6 +141,7 @@ export default function ConversationView({
   const statusBg = STATUS_BG[status]
   const avatarColor = AGENT_COLORS[session.agent] || '#64748B'
   const agentCode = AGENT_CODES[session.agent] || '??'
+  const agentColor = AGENT_COLORS[session.agent] || '#6B7280'
 
   // Last non-result event preview
   let lastNonResultEvent = null
@@ -150,15 +153,58 @@ export default function ConversationView({
   }
   const headerPreview = eventPreview(lastNonResultEvent)
 
-  // Render cap
-  const allEvents = session.events
-  const totalEvents = allEvents.length
-  const startIdx = Math.max(0, totalEvents - RENDER_CAP - eventOffset)
-  const visibleEvents = allEvents.slice(startIdx)
+  // Render cap (aliases to the hook-level values computed above)
+  const startIdx = startIdxForMemo
+  const visibleEvents = visibleEventsForMemo
   const hiddenCount = startIdx
 
   function loadEarlier() {
     setEventOffset(prev => prev + RENDER_CAP)
+  }
+
+  function renderEvent(ev, idx) {
+    const key = `${ev.sessionId ?? 'ev'}-${startIdx + idx}`
+
+    // Skip result events — handled by ActionCard
+    if (ev.kind === 'result') return null
+
+    // Skip system messages (non-session-start)
+    if (ev.role === 'system' && ev.kind !== 'session_start') return null
+
+    // Session start divider and message bubbles
+    if (ev.kind === 'session_start' || ev.kind === 'message' || ev.kind === 'thinking') {
+      return (
+        <MessageBubble key={key} event={ev} agentColor={agentColor} />
+      )
+    }
+
+    // Delegation badge for task actions
+    if (ev.kind === 'action' && ev.action === 'task') {
+      return (
+        <DelegationBadge
+          key={key}
+          event={ev}
+          onSelectSession={onSelectSession}
+          subagentLinks={session.subagentLinks}
+        />
+      )
+    }
+
+    // Regular action card
+    if (ev.kind === 'action') {
+      return (
+        <ActionCard
+          key={key}
+          event={ev}
+          resultEvent={resultMap.get(ev.sourceSeq) || null}
+          agentColor={agentColor}
+          durationTick={durationTick}
+        />
+      )
+    }
+
+    // Unknown event kinds — nothing rendered
+    return null
   }
 
   return (
@@ -194,9 +240,7 @@ export default function ConversationView({
             Load earlier messages ({hiddenCount} more)
           </button>
         )}
-        {visibleEvents.map((event, idx) => (
-          <EventPlaceholder key={`${event.sessionId}-${startIdx + idx}`} event={event} />
-        ))}
+        {visibleEvents.map((ev, idx) => renderEvent(ev, idx))}
       </div>
 
       {/* Input area */}
