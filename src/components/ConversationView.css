@@ -83,6 +83,59 @@
   white-space: nowrap;
 }
 
+/* ── Find bar ────────────────────────────────────────────────── */
+.find-bar {
+  height: 36px;
+  background: var(--surface-2);
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.find-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+}
+
+.find-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+.find-bar-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.find-bar-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.find-bar-btn:hover {
+  background: var(--fill-ghost-hover);
+  color: var(--text-primary);
+}
+
+.find-bar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* ── Message scroll area ─────────────────────────────────────── */
 .conversation-scroll {
   flex: 1;

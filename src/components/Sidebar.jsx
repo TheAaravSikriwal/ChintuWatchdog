@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { IconEdit, IconUsers, IconSearch, IconX } from '@tabler/icons-react'
 import ThreadRow from './ThreadRow'
 import './Sidebar.css'
@@ -38,7 +38,7 @@ function HighlightMatch({ text, query }) {
   )
 }
 
-function HistorySection({ label, sessions, activeSessionId, onSelectSession, searchQuery }) {
+function HistorySection({ label, sessions, activeSessionId, focusedSessionId, onSelectSession, searchQuery }) {
   const [expanded, setExpanded] = useState(false)
   const visible = expanded ? sessions : sessions.slice(0, HISTORY_SECTION_LIMIT)
   const hiddenCount = sessions.length - HISTORY_SECTION_LIMIT
@@ -51,6 +51,7 @@ function HistorySection({ label, sessions, activeSessionId, onSelectSession, sea
           key={sess.sessionId}
           session={sess}
           isSelected={sess.sessionId === activeSessionId}
+          isFocused={sess.sessionId === focusedSessionId}
           isSubAgent={false}
           isContinuation={false}
           onClick={() => onSelectSession(sess.sessionId)}
@@ -78,20 +79,9 @@ export default function Sidebar({
   onSelectSession,
   onShowAllAgents,
   onNewSession,
+  searchRef,
 }) {
-  const searchInputRef = useRef(null)
-
-  // Cmd+K / Ctrl+K to focus search
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  const [focusedIndex, setFocusedIndex] = useState(-1)
 
   const grouped = getGroupedSessions()
 
@@ -113,8 +103,40 @@ export default function Sidebar({
     searchResults.sort((a, b) => b.lastEventAt - a.lastEventAt)
   }
 
+  // Build flat session list for arrow-key navigation
+  const flatSessionList = (() => {
+    if (searchActive) {
+      return searchResults.map(s => s.sessionId)
+    }
+    const ids = []
+    for (const sessions of grouped.active.values()) {
+      for (const sess of sessions) ids.push(sess.sessionId)
+    }
+    for (const sess of grouped.today) ids.push(sess.sessionId)
+    for (const sess of grouped.yesterday) ids.push(sess.sessionId)
+    for (const sess of grouped.thisWeek) ids.push(sess.sessionId)
+    for (const sess of grouped.older) ids.push(sess.sessionId)
+    return ids
+  })()
+
+  const focusedSessionId = flatSessionList[focusedIndex] ?? null
+
+  function handleSidebarKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusedIndex(i => Math.min(i + 1, flatSessionList.length - 1))
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIndex(i => Math.max(i - 1, 0))
+    }
+    if (e.key === 'Enter' && flatSessionList[focusedIndex]) {
+      onSelectSession(flatSessionList[focusedIndex])
+    }
+  }
+
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" tabIndex={0} onKeyDown={handleSidebarKeyDown}>
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-header-text">
@@ -137,7 +159,7 @@ export default function Sidebar({
           style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%) translateY(-4px)', color: 'var(--text-muted)', pointerEvents: 'none' }}
         />
         <input
-          ref={searchInputRef}
+          ref={searchRef}
           className="sidebar-search-input"
           type="text"
           placeholder="Search sessions..."
@@ -177,6 +199,7 @@ export default function Sidebar({
                   key={sess.sessionId}
                   session={sess}
                   isSelected={sess.sessionId === activeSessionId}
+                  isFocused={sess.sessionId === focusedSessionId}
                   isSubAgent={false}
                   isContinuation={false}
                   onClick={() => onSelectSession(sess.sessionId)}
@@ -206,6 +229,7 @@ export default function Sidebar({
                         key={sess.sessionId}
                         session={sess}
                         isSelected={sess.sessionId === activeSessionId}
+                        isFocused={sess.sessionId === focusedSessionId}
                         isSubAgent={!!sess.parentSessionId}
                         isContinuation={!!sess.continuationOf}
                         onClick={() => onSelectSession(sess.sessionId)}
@@ -222,6 +246,7 @@ export default function Sidebar({
                 label="Today"
                 sessions={grouped.today}
                 activeSessionId={activeSessionId}
+                focusedSessionId={focusedSessionId}
                 onSelectSession={onSelectSession}
                 searchQuery=""
               />
@@ -232,6 +257,7 @@ export default function Sidebar({
                 label="Yesterday"
                 sessions={grouped.yesterday}
                 activeSessionId={activeSessionId}
+                focusedSessionId={focusedSessionId}
                 onSelectSession={onSelectSession}
                 searchQuery=""
               />
@@ -242,6 +268,7 @@ export default function Sidebar({
                 label="This Week"
                 sessions={grouped.thisWeek}
                 activeSessionId={activeSessionId}
+                focusedSessionId={focusedSessionId}
                 onSelectSession={onSelectSession}
                 searchQuery=""
               />
@@ -252,6 +279,7 @@ export default function Sidebar({
                 label="Older"
                 sessions={grouped.older}
                 activeSessionId={activeSessionId}
+                focusedSessionId={focusedSessionId}
                 onSelectSession={onSelectSession}
                 searchQuery=""
               />

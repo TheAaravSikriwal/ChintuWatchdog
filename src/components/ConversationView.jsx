@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { computeSessionStatus, STATUS_LABELS, STATUS_COLORS } from '../utils/sessionStatus'
 import { eventPreview } from '../utils/plainEnglish'
 import { buildResultMap } from '../utils/resultPairing'
@@ -7,6 +7,7 @@ import InputArea from './InputArea'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
 import DelegationBadge from './DelegationBadge'
+import FindBar from './FindBar'
 import './ConversationView.css'
 
 const AGENT_COLORS = {
@@ -48,11 +49,21 @@ export default function ConversationView({
   onSelectSession,
   saveScrollPosition,
   getScrollPosition,
+  showFindBar,
+  onCloseFindBar,
 }) {
   const scrollRef = useRef(null)
   const prevSessionIdRef = useRef(null)
   const [eventOffset, setEventOffset] = useState(0)
   const durationTick = useDurationTick()
+  const [findMatches, setFindMatches] = useState({ matches: [], currentIndex: 0 })
+
+  const handleMatchChange = useCallback(({ matches, currentIndex }) => {
+    setFindMatches({ matches, currentIndex })
+  }, [])
+
+  const highlightedEventIndices = new Set(findMatches.matches)
+  const currentMatchEventIndex = findMatches.matches[findMatches.currentIndex] ?? null
 
   // Derive visible events and result map at hook level (before early returns)
   const allEventsForMemo = session?.events ?? []
@@ -163,7 +174,15 @@ export default function ConversationView({
   }
 
   function renderEvent(ev, idx) {
-    const key = `${ev.sessionId ?? 'ev'}-${startIdx + idx}`
+    const globalIdx = startIdx + idx
+    const key = `${ev.sessionId ?? 'ev'}-${globalIdx}`
+    const isHighlighted = highlightedEventIndices.has(globalIdx)
+    const isCurrent = currentMatchEventIndex === globalIdx
+    const highlightStyle = isCurrent
+      ? { outline: '1.5px solid rgba(251,191,36,0.8)', borderRadius: 8, background: 'rgba(251,191,36,0.10)' }
+      : isHighlighted
+      ? { outline: '1px solid rgba(251,191,36,0.35)', borderRadius: 8 }
+      : {}
 
     // Skip result events — handled by ActionCard
     if (ev.kind === 'result') return null
@@ -174,32 +193,36 @@ export default function ConversationView({
     // Session start divider and message bubbles
     if (ev.kind === 'session_start' || ev.kind === 'message' || ev.kind === 'thinking') {
       return (
-        <MessageBubble key={key} event={ev} agentColor={agentColor} />
+        <div key={key} style={highlightStyle}>
+          <MessageBubble event={ev} agentColor={agentColor} />
+        </div>
       )
     }
 
     // Delegation badge for task actions
     if (ev.kind === 'action' && ev.action === 'task') {
       return (
-        <DelegationBadge
-          key={key}
-          event={ev}
-          onSelectSession={onSelectSession}
-          subagentLinks={session.subagentLinks}
-        />
+        <div key={key} style={highlightStyle}>
+          <DelegationBadge
+            event={ev}
+            onSelectSession={onSelectSession}
+            subagentLinks={session.subagentLinks}
+          />
+        </div>
       )
     }
 
     // Regular action card
     if (ev.kind === 'action') {
       return (
-        <ActionCard
-          key={key}
-          event={ev}
-          resultEvent={resultMap.get(ev.sourceSeq) || null}
-          agentColor={agentColor}
-          durationTick={durationTick}
-        />
+        <div key={key} style={highlightStyle}>
+          <ActionCard
+            event={ev}
+            resultEvent={resultMap.get(ev.sourceSeq) || null}
+            agentColor={agentColor}
+            durationTick={durationTick}
+          />
+        </div>
       )
     }
 
@@ -232,6 +255,14 @@ export default function ConversationView({
           </div>
         </div>
       </div>
+
+      {/* Find bar */}
+      <FindBar
+        events={session.events}
+        visible={showFindBar}
+        onClose={onCloseFindBar}
+        onMatchChange={handleMatchChange}
+      />
 
       {/* Message scroll area */}
       <div className="conversation-scroll" ref={scrollRef}>

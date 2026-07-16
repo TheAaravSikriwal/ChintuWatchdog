@@ -31,7 +31,7 @@ function relativeTime(date) {
   return `${weeks}w`
 }
 
-export default function ThreadRow({ session, isSelected, isSubAgent, isContinuation, onClick, searchQuery }) {
+export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, isContinuation, onClick, searchQuery }) {
   const status = computeSessionStatus(session)
   const isHistorical = status === 'quiet'
   const avatarColor = AGENT_COLORS[session.agent] || '#64748B'
@@ -89,6 +89,8 @@ export default function ThreadRow({ session, isSelected, isSubAgent, isContinuat
         margin: '0 4px',
         transition: 'background 0.1s',
         background: isSelected ? 'var(--bg-accent)' : 'transparent',
+        outline: isFocused && !isSelected ? '1.5px solid var(--border-accent)' : 'none',
+        outlineOffset: -2,
         ...indentStyle,
       }}
       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--fill-ghost-hover)' }}
