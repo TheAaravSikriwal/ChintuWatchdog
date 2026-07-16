@@ -5,6 +5,7 @@
   height: 100%;
   overflow: hidden;
   background: var(--surface-0);
+  position: relative;
 }
 
 /* ── Empty state ─────────────────────────────────────────────── */

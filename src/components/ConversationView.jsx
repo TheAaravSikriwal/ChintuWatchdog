@@ -9,6 +9,7 @@ import ActionCard from './ActionCard'
 import DelegationBadge from './DelegationBadge'
 import FindBar from './FindBar'
 import AllAgentsView from './AllAgentsView'
+import GlassDome from './GlassDome'
 import './ConversationView.css'
 
 const AGENT_COLORS = {
@@ -132,6 +133,11 @@ export default function ConversationView({
           Select a session or start a new one
         </div>
         <InputArea session={null} />
+        <GlassDome
+          sessionsRef={sessionsRef}
+          sessionsVersion={sessionsVersion}
+          onClick={() => onToggleBroadView(true)}
+        />
       </div>
     )
   }
@@ -144,6 +150,11 @@ export default function ConversationView({
           sessionsRef={sessionsRef}
           sessionsVersion={sessionsVersion}
           onSelectSession={onSelectSession}
+        />
+        <GlassDome
+          sessionsRef={sessionsRef}
+          sessionsVersion={sessionsVersion}
+          onClick={() => onToggleBroadView(true)}
         />
       </div>
     )
@@ -279,6 +290,13 @@ export default function ConversationView({
 
       {/* Input area */}
       <InputArea session={session} />
+
+      {/* Glass dome minimap */}
+      <GlassDome
+        sessionsRef={sessionsRef}
+        sessionsVersion={sessionsVersion}
+        onClick={() => onToggleBroadView(true)}
+      />
     </div>
   )
 }
