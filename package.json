@@ -1,0 +1,93 @@
+{
+  "name": "watchdog",
+  "version": "0.1.0",
+  "description": "Watch Dog — supervise AI coding agents in plain English",
+  "author": "Aarav Sikriwal",
+  "main": "electron.js",
+  "scripts": {
+    "dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on tcp:5174 && node scripts/dev-electron.cjs\"",
+    "build": "vite build",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.1.0",
+    "@fontsource/jetbrains-mono": "^5.1.0",
+    "chokidar": "^4.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^8.2.0",
+    "electron": "^41.5.0",
+    "electron-builder": "^26.8.1",
+    "vite": "^8.0.14",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.watchdog.app",
+    "productName": "Watch Dog",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron.js",
+      "preload.js",
+      "main/**/*",
+      "dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "WatchDog-Setup.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "artifactName": "WatchDog.${ext}",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Development",
+      "artifactName": "WatchDog-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Watch Dog"
+    }
+  }
+}

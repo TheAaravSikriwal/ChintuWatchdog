@@ -1,0 +1,98 @@
+/* ── Reset & base ─────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f1117;
+  --bg-surface: #161921;
+  --bg-elevated: #1c1f2b;
+  --border: #2a2d3a;
+  --text: #e1e3ea;
+  --text-muted: #8b8fa3;
+  --text-dim: #5c6078;
+  --accent: #7c8aff;
+  --accent-muted: rgba(124, 138, 255, 0.15);
+  --green: #4ade80;
+  --green-muted: rgba(74, 222, 128, 0.15);
+  --amber: #fbbf24;
+  --amber-muted: rgba(251, 191, 36, 0.15);
+  --red: #f87171;
+  --red-muted: rgba(248, 113, 113, 0.15);
+  --purple: #a78bfa;
+  --purple-muted: rgba(167, 139, 250, 0.15);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --radius: 6px;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ── App layout ───────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.app-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.app-dir {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.app-main {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Loading ──────────────────────────────────────────────────── */
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg);
+}
+
+.loading-text {
+  color: var(--text-muted);
+  font-size: 14px;
+}
