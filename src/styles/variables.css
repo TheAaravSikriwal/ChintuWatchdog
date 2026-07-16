@@ -1,0 +1,81 @@
+/* Watch Dog — Design tokens
+   Dark theme default. Light theme via data-theme="light" or prefers-color-scheme. */
+
+:root {
+  /* Surfaces */
+  --surface-0: #0C1221;
+  --surface-1: #111D35;
+  --surface-2: #1A2540;
+  --surface-3: #1E2D52;
+
+  /* Text */
+  --text-primary: #E8EAF0;
+  --text-secondary: #8B92A8;
+  --text-muted: #4A5270;
+
+  /* Borders */
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.15);
+  --border-danger: rgba(239,68,68,0.4);
+  --border-accent: rgba(37,99,235,0.4);
+
+  /* Accent (blue) */
+  --fill-accent: #2563EB;
+  --on-accent: #ffffff;
+  --bg-accent: rgba(37,99,235,0.15);
+  --text-accent: #60A5FA;
+
+  /* Success */
+  --bg-success: rgba(34,197,94,0.15);
+  --text-success: #4ADE80;
+
+  /* Danger */
+  --bg-danger: rgba(239,68,68,0.15);
+  --text-danger: #F87171;
+
+  /* Warning */
+  --bg-warning: rgba(251,191,36,0.15);
+  --text-warning: #FCD34D;
+
+  /* Pro (purple) */
+  --bg-pro: rgba(124,58,237,0.15);
+  --text-pro: #A78BFA;
+
+  /* Interactive */
+  --fill-ghost-hover: rgba(255,255,255,0.05);
+
+  /* Layout */
+  --radius: 8px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+}
+
+[data-theme="light"],
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --surface-0: #F0EAE0;
+    --surface-1: #E8E0D4;
+    --surface-2: #DEDAD0;
+    --surface-3: #D4CFC4;
+    --text-primary: #1A1A2E;
+    --text-secondary: #4A4A6A;
+    --text-muted: #8A8AA0;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.18);
+    --border-danger: rgba(239,68,68,0.3);
+    --border-accent: rgba(37,99,235,0.3);
+    --bg-accent: rgba(37,99,235,0.1);
+    --text-accent: #1D4ED8;
+    --fill-ghost-hover: rgba(0,0,0,0.04);
+    --bg-success: rgba(34,197,94,0.1);
+    --text-success: #16A34A;
+    --bg-danger: rgba(239,68,68,0.1);
+    --text-danger: #DC2626;
+    --bg-warning: rgba(251,191,36,0.1);
+    --text-warning: #D97706;
+    --bg-pro: rgba(124,58,237,0.1);
+    --text-pro: #7C3AED;
+  }
+}
