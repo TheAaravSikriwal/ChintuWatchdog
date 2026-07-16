@@ -1,66 +1,91 @@
-import { useState, useEffect, useRef } from 'react'
-import EventFeed from './components/EventFeed'
+import { useState, useCallback } from 'react'
+import { useSessions } from './hooks/useSessions'
+import { useSessionScroll } from './hooks/useSessionScroll'
+import Sidebar from './components/Sidebar'
+import ConversationView from './components/ConversationView'
+import NewSessionView from './components/NewSessionView'
+import './styles/variables.css'
+import './App.css'
 
 function App() {
-  const [events, setEvents] = useState([])
-  const [projectsDir, setProjectsDir] = useState('')
-  const [loading, setLoading] = useState(true)
-  const eventsRef = useRef([])
+  const { sessionsRef, sessionsVersion, loading, lastEventReceivedAt, markSessionViewed, getGroupedSessions } = useSessions()
+  const { saveScrollPosition, getScrollPosition } = useSessionScroll()
 
-  // Load initial events on mount
-  useEffect(() => {
-    let cancelled = false
+  const [activeSessionId, setActiveSessionId] = useState(null)
+  const [showAllAgents, setShowAllAgents] = useState(false)
+  const [showNewSession, setShowNewSession] = useState(false)
+  const [showBroadView, setShowBroadView] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
-    async function init() {
-      try {
-        const dir = await window.watchdog.getProjectsDir()
-        if (!cancelled) setProjectsDir(dir)
+  const handleSelectSession = useCallback((sessionId) => {
+    setActiveSessionId(sessionId)
+    setShowAllAgents(false)
+    setShowNewSession(false)
+    if (sessionId) markSessionViewed(sessionId)
+  }, [markSessionViewed])
 
-        const initial = await window.watchdog.getInitialEvents()
-        if (!cancelled) {
-          eventsRef.current = initial
-          setEvents(initial)
-        }
-      } catch (err) {
-        console.error('Failed to load initial events:', err)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    init()
-    return () => { cancelled = true }
+  const handleShowAllAgents = useCallback(() => {
+    setShowAllAgents(true)
+    setActiveSessionId(null)
+    setShowNewSession(false)
   }, [])
 
-  // Subscribe to live events
-  useEffect(() => {
-    const cleanup = window.watchdog.onEvents((newEvents) => {
-      eventsRef.current = [...eventsRef.current, ...newEvents]
-      setEvents([...eventsRef.current])
-    })
-    return cleanup
+  const handleNewSession = useCallback(() => {
+    setShowNewSession(true)
+    setActiveSessionId(null)
+    setShowAllAgents(false)
+  }, [])
+
+  const handleCloseNewSession = useCallback(() => {
+    setShowNewSession(false)
+  }, [])
+
+  const handleToggleBroadView = useCallback(() => {
+    setShowBroadView(v => !v)
   }, [])
 
   if (loading) {
     return (
       <div className="app-loading">
-        <div className="loading-text">Scanning for agent sessions...</div>
+        Catching up on what happened...
       </div>
     )
   }
 
+  const activeSession = activeSessionId ? sessionsRef.current.get(activeSessionId) : null
+
   return (
     <div className="app">
-      <header className="app-header">
-        <h1 className="app-title">Watch Dog</h1>
-        <span className="app-status">
-          {events.length} events
-          {projectsDir && <span className="app-dir" title={projectsDir}> &middot; {projectsDir}</span>}
-        </span>
-      </header>
-      <main className="app-main">
-        <EventFeed events={events} />
-      </main>
+      <Sidebar
+        sessionsRef={sessionsRef}
+        sessionsVersion={sessionsVersion}
+        getGroupedSessions={getGroupedSessions}
+        lastEventReceivedAt={lastEventReceivedAt}
+        activeSessionId={activeSessionId}
+        showAllAgents={showAllAgents}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSelectSession={handleSelectSession}
+        onShowAllAgents={handleShowAllAgents}
+        onNewSession={handleNewSession}
+      />
+      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {showNewSession ? (
+          <NewSessionView onClose={handleCloseNewSession} />
+        ) : (
+          <ConversationView
+            session={activeSession}
+            showAllAgents={showAllAgents}
+            sessionsRef={sessionsRef}
+            sessionsVersion={sessionsVersion}
+            showBroadView={showBroadView}
+            onToggleBroadView={handleToggleBroadView}
+            onSelectSession={handleSelectSession}
+            saveScrollPosition={saveScrollPosition}
+            getScrollPosition={getScrollPosition}
+          />
+        )}
+      </div>
     </div>
   )
 }
