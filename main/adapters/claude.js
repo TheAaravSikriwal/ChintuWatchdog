@@ -31,9 +31,21 @@ function getProjectsDir() {
 }
 
 /**
+ * Extract parent session ID from a sub-agent file path.
+ * Sub-agents live at: <projectsDir>/<project>/subagents/<parentSessionId>/<agent-file>.jsonl
+ */
+function getParentSessionId(filePath, sessionId) {
+  if (!sessionId.startsWith('agent-')) return null
+  const parts = filePath.split(/[/\\]/)
+  const idx = parts.indexOf('subagents')
+  if (idx >= 0 && idx + 1 < parts.length) return parts[idx + 1]
+  return null
+}
+
+/**
  * Discover session files under the projects directory.
- * Returns array of { path, sessionId, project }.
- * Skips subagent files (agent-* prefix).
+ * Returns array of { path, sessionId, project, parentSessionId }.
+ * Includes sub-agent files from subagents/ subdirectories.
  */
 function discoverSessions(projectsDir) {
   const sessions = []
@@ -47,26 +59,33 @@ function discoverSessions(projectsDir) {
   for (const proj of projects) {
     if (!proj.isDirectory() && !proj.isSymbolicLink()) continue
     const projDir = path.join(projectsDir, proj.name)
+    _scanDir(projDir, proj.name, sessions)
+  }
+  return sessions
+}
 
-    let files
-    try {
-      files = fs.readdirSync(projDir, { withFileTypes: true })
-    } catch {
-      continue
-    }
+function _scanDir(dir, project, sessions, depth) {
+  if (depth === undefined) depth = 0
+  if (depth > 4) return
+  let entries
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
 
-    for (const file of files) {
-      if (file.isDirectory()) continue
-      if (!file.name.endsWith('.jsonl')) continue
-      if (file.name.startsWith('agent-')) continue
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory() || entry.isSymbolicLink()) {
+      if (entry.name === 'subagents' || depth > 0) {
+        _scanDir(fullPath, project, sessions, depth + 1)
+      }
+    } else if (entry.name.endsWith('.jsonl')) {
+      const sessionId = entry.name.replace('.jsonl', '')
       sessions.push({
-        path: path.join(projDir, file.name),
-        sessionId: file.name.replace('.jsonl', ''),
-        project: proj.name,
+        path: fullPath,
+        sessionId,
+        project,
+        parentSessionId: getParentSessionId(fullPath, sessionId),
       })
     }
   }
-  return sessions
 }
 
 // ── Line parsing ───────────────────────────────────────────────────
@@ -97,9 +116,45 @@ function parseLine(line, sessionId, seq) {
   const timestamp = typeof obj.timestamp === 'string' ? obj.timestamp : null
   const cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined
 
+  // ── Sub-agent linking sources 2 & 3 ─────────────────────────────
+  // queue-operation and progress lines carry sub-agent metadata.
+  // Return as metadata alongside empty events array.
+
+  if (type === 'queue-operation') {
+    const op = typeof obj.operation === 'string' ? obj.operation : ''
+    if (op === 'enqueue') {
+      const toolUseId = typeof obj.tool_use_id === 'string' ? obj.tool_use_id : null
+      const taskId = typeof obj.task_id === 'string' ? obj.task_id : null
+      if (toolUseId && taskId) {
+        return {
+          events: [],
+          nextSeq: seq,
+          subagentLink: { toolUseId, subagentSessionId: 'agent-' + taskId },
+        }
+      }
+    }
+    return { events: [], nextSeq: seq }
+  }
+
+  if (type === 'progress') {
+    const data = obj.data && typeof obj.data === 'object' ? obj.data : {}
+    if (data.type === 'agent_progress') {
+      const toolUseId = typeof obj.parentToolUseID === 'string' ? obj.parentToolUseID : null
+      const agentId = typeof data.agentId === 'string' ? data.agentId : null
+      if (toolUseId && agentId) {
+        return {
+          events: [],
+          nextSeq: seq,
+          subagentLink: { toolUseId, subagentSessionId: 'agent-' + agentId },
+        }
+      }
+    }
+    return { events: [], nextSeq: seq }
+  }
+
   // Only process user and assistant lines.
-  // Skip: attachment, file-history-snapshot, system, queue-operation,
-  // permission-mode, last-prompt, progress, and any unknown types.
+  // Skip: attachment, file-history-snapshot, system, permission-mode,
+  // last-prompt, and any unknown types.
   if (type !== 'user' && type !== 'assistant') {
     return { events, nextSeq: seq }
   }
@@ -292,6 +347,7 @@ function isTruncatedWrite(lastLine, buf) {
 module.exports = {
   AGENT,
   getProjectsDir,
+  getParentSessionId,
   discoverSessions,
   parseLine,
   isTruncatedWrite,

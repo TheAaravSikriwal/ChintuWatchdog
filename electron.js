@@ -9,8 +9,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 700,
-    minWidth: 600,
-    minHeight: 400,
+    minWidth: 900,
+    minHeight: 620,
     title: 'Watch Dog',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -53,7 +53,7 @@ function startWatcher() {
 // Renderer requests initial state on mount — re-parse all sessions
 // from all agents into one merged, time-ordered stream.
 ipcMain.handle('watchdog:get-initial-events', () => {
-  if (!watcher) return []
+  if (!watcher) return { events: [], sessionMeta: {} }
 
   const fs = require('fs')
   const claude = require('./main/adapters/claude')
@@ -63,32 +63,18 @@ ipcMain.handle('watchdog:get-initial-events', () => {
   const antigravity = require('./main/adapters/antigravity')
   const { compareEvents } = require('./main/event')
 
-  // All agents are line-based: discover sessions, parse every line, collect events.
   console.log('[watchdog] Loading initial events from all agents...')
   const sources = [
-    {
-      adapter: claude,
-      sessions: claude.discoverSessions(claude.getProjectsDir()),
-    },
-    {
-      adapter: codex,
-      sessions: codex.discoverSessions(codex.getSessionsDirs()),
-    },
-    {
-      adapter: cursor,
-      sessions: cursor.discoverSessions(cursor.getSessionsDirs()),
-    },
-    {
-      adapter: aider,
-      sessions: aider.discoverSessions(aider.getSessionsDirs()),
-    },
-    {
-      adapter: antigravity,
-      sessions: antigravity.discoverSessions(antigravity.getSessionsDirs()),
-    },
+    { adapter: claude, sessions: claude.discoverSessions(claude.getProjectsDir()) },
+    { adapter: codex, sessions: codex.discoverSessions(codex.getSessionsDirs()) },
+    { adapter: cursor, sessions: cursor.discoverSessions(cursor.getSessionsDirs()) },
+    { adapter: aider, sessions: aider.discoverSessions(aider.getSessionsDirs()) },
+    { adapter: antigravity, sessions: antigravity.discoverSessions(antigravity.getSessionsDirs()) },
   ]
 
   const allEvents = []
+  const sessionMeta = {}
+
   for (const { adapter, sessions } of sources) {
     for (const session of sessions) {
       let buf
@@ -100,6 +86,18 @@ ipcMain.handle('watchdog:get-initial-events', () => {
       let lastMsgId = null
       let lastMsgIdStart = 0
       let lastMsgIdSeq = 0
+      const subagentLinks = {}
+
+      // Initialize metadata from discovery
+      if (!sessionMeta[session.sessionId]) {
+        sessionMeta[session.sessionId] = {
+          parentSessionId: session.parentSessionId || null,
+          subagentLinks: {},
+          renamedTo: null,
+          continuationOf: null,
+        }
+      }
+
       for (const rawLine of lines) {
         const line = rawLine.trim()
         if (!line) continue
@@ -109,8 +107,14 @@ ipcMain.handle('watchdog:get-initial-events', () => {
         } catch {
           continue
         }
-        // Streaming dedup (Claude): consecutive same-message.id lines
-        // are cumulative snapshots — keep only the last batch.
+
+        // Collect sub-agent links from queue-operation and progress events
+        if (result.subagentLink) {
+          const { toolUseId, subagentSessionId } = result.subagentLink
+          subagentLinks[toolUseId] = subagentSessionId
+        }
+
+        // Streaming dedup (Claude)
         if (result.messageId) {
           if (result.messageId === lastMsgId) {
             allEvents.length = lastMsgIdStart
@@ -124,24 +128,37 @@ ipcMain.handle('watchdog:get-initial-events', () => {
         }
         allEvents.push(...result.events)
         seq = result.nextSeq
-        // Codex's parseLine may override sessionId (from session_meta)
         if ('sessionId' in result) {
           sessionId = result.sessionId
         }
       }
+
+      // Merge collected subagent links
+      const metaKey = sessionId
+      if (Object.keys(subagentLinks).length > 0) {
+        if (!sessionMeta[metaKey]) {
+          sessionMeta[metaKey] = {
+            parentSessionId: session.parentSessionId || null,
+            subagentLinks: {},
+            renamedTo: null,
+            continuationOf: null,
+          }
+        }
+        Object.assign(sessionMeta[metaKey].subagentLinks, subagentLinks)
+      }
     }
   }
 
-  // Log per-agent event counts for diagnostics
   const agentCounts = {}
   for (const ev of allEvents) {
     agentCounts[ev.agent] = (agentCounts[ev.agent] || 0) + 1
   }
   console.log('[watchdog] Initial events by agent:', agentCounts)
   console.log('[watchdog] Total initial events:', allEvents.length)
+  console.log('[watchdog] Sessions with metadata:', Object.keys(sessionMeta).length)
 
   allEvents.sort(compareEvents)
-  return allEvents
+  return { events: allEvents, sessionMeta }
 })
 
 ipcMain.handle('watchdog:get-projects-dir', () => {
