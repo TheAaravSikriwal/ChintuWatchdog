@@ -10,6 +10,7 @@ import DelegationBadge from './DelegationBadge'
 import FindBar from './FindBar'
 import AllAgentsView from './AllAgentsView'
 import GlassDome from './GlassDome'
+import BroadView from './BroadView'
 import './ConversationView.css'
 
 const AGENT_COLORS = {
@@ -138,6 +139,14 @@ export default function ConversationView({
           sessionsVersion={sessionsVersion}
           onClick={() => onToggleBroadView(true)}
         />
+        {showBroadView && (
+          <BroadView
+            sessionsRef={sessionsRef}
+            sessionsVersion={sessionsVersion}
+            onClose={() => onToggleBroadView(false)}
+            onSelectSession={(id) => { onToggleBroadView(false); onSelectSession(id); }}
+          />
+        )}
       </div>
     )
   }
@@ -156,6 +165,14 @@ export default function ConversationView({
           sessionsVersion={sessionsVersion}
           onClick={() => onToggleBroadView(true)}
         />
+        {showBroadView && (
+          <BroadView
+            sessionsRef={sessionsRef}
+            sessionsVersion={sessionsVersion}
+            onClose={() => onToggleBroadView(false)}
+            onSelectSession={(id) => { onToggleBroadView(false); onSelectSession(id); }}
+          />
+        )}
       </div>
     )
   }
@@ -297,6 +314,16 @@ export default function ConversationView({
         sessionsVersion={sessionsVersion}
         onClick={() => onToggleBroadView(true)}
       />
+
+      {/* Broad view overlay */}
+      {showBroadView && (
+        <BroadView
+          sessionsRef={sessionsRef}
+          sessionsVersion={sessionsVersion}
+          onClose={() => onToggleBroadView(false)}
+          onSelectSession={(id) => { onToggleBroadView(false); onSelectSession(id); }}
+        />
+      )}
     </div>
   )
 }
