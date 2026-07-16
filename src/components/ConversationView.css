@@ -428,6 +428,38 @@
   border-top: none;
 }
 
+/* ── All-agents interleaved view ─────────────────────────────── */
+.all-agents-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.all-agents-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 600;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.all-agents-input {
+  padding: 12px 18px;
+  background: var(--surface-1);
+  border-top: 0.5px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* ── Delegation badge ────────────────────────────────────────── */
 .delegation-badge {
   display: inline-flex;

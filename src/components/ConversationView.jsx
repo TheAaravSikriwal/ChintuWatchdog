@@ -8,6 +8,7 @@ import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
 import DelegationBadge from './DelegationBadge'
 import FindBar from './FindBar'
+import AllAgentsView from './AllAgentsView'
 import './ConversationView.css'
 
 const AGENT_COLORS = {
@@ -136,12 +137,14 @@ export default function ConversationView({
   }
 
   if (!session) {
-    // showAllAgents mode — placeholder for now
+    // showAllAgents mode
     return (
       <div className="conversation-view">
-        <div className="conversation-empty">
-          All agents view — coming soon
-        </div>
+        <AllAgentsView
+          sessionsRef={sessionsRef}
+          sessionsVersion={sessionsVersion}
+          onSelectSession={onSelectSession}
+        />
       </div>
     )
   }
