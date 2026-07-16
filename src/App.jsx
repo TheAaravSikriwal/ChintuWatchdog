@@ -47,6 +47,17 @@ function App() {
     setShowBroadView(v => !v)
   }, [])
 
+  // System theme detection
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: light)')
+    const handler = (e) => {
+      document.documentElement.setAttribute('data-theme', e.matches ? 'light' : 'dark')
+    }
+    handler(mq) // set initial theme
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
   useEffect(() => {
     function handleKeyDown(e) {
       const isMod = e.metaKey || e.ctrlKey
