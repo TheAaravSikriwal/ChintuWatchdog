@@ -135,12 +135,14 @@ export default function ConversationView({
         </div>
         <InputArea session={null} />
         <GlassDome
+          session={session}
           sessionsRef={sessionsRef}
           sessionsVersion={sessionsVersion}
           onClick={() => onToggleBroadView(true)}
         />
         {showBroadView && (
           <BroadView
+            session={session}
             sessionsRef={sessionsRef}
             sessionsVersion={sessionsVersion}
             onClose={() => onToggleBroadView(false)}
@@ -161,12 +163,14 @@ export default function ConversationView({
           onSelectSession={onSelectSession}
         />
         <GlassDome
+          session={session}
           sessionsRef={sessionsRef}
           sessionsVersion={sessionsVersion}
           onClick={() => onToggleBroadView(true)}
         />
         {showBroadView && (
           <BroadView
+            session={session}
             sessionsRef={sessionsRef}
             sessionsVersion={sessionsVersion}
             onClose={() => onToggleBroadView(false)}
