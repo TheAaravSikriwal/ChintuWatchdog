@@ -157,6 +157,46 @@
   color: var(--text-primary);
 }
 
+/* ── All-agents day rows (Messages/Claude-style history) ─────── */
+.sidebar-day-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 5px var(--space-3) 5px 44px;   /* indent under the All-agents avatar */
+  margin: 0 var(--space-1);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-day-row:hover {
+  background: var(--fill-ghost-hover);
+}
+
+.sidebar-day-row.selected {
+  background: var(--bg-accent);
+}
+
+.sidebar-day-label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-day-row.selected .sidebar-day-label {
+  color: var(--text-accent);
+}
+
+.sidebar-day-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 /* ── Thread list ─────────────────────────────────────────────── */
 .sidebar-thread-list {
   flex: 1;

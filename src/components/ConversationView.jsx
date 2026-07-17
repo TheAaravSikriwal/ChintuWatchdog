@@ -31,6 +31,8 @@ const STATUS_BG = {
 export default function ConversationView({
   session,
   showAllAgents,
+  allAgentsDay,
+  onSelectAllAgentsDay,
   sessionsRef,
   sessionsVersion,
   showBroadView,
@@ -181,6 +183,8 @@ export default function ConversationView({
           sessionsRef={sessionsRef}
           sessionsVersion={sessionsVersion}
           onSelectSession={onSelectSession}
+          day={allAgentsDay}
+          onSelectDay={onSelectAllAgentsDay}
         />
         <GlassDome
           session={session}

@@ -475,6 +475,67 @@
   color: var(--text-muted);
 }
 
+/* ── All-agents day navigator ────────────────────────────────── */
+.all-agents-daybar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-1);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.all-agents-daybar-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.all-agents-daybar-day {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  font-variation-settings: "opsz" 144, "SOFT" 80, "wght" 600;
+  color: var(--text-primary);
+}
+
+.all-agents-daybar-live {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-success);
+  background: var(--bg-success);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.all-agents-daybar-nav {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.all-agents-daybar-nav:hover:not(:disabled) {
+  background: var(--fill-ghost-hover);
+  color: var(--text-primary);
+}
+
+.all-agents-daybar-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 /* ── Delegation badge ────────────────────────────────────────── */
 .delegation-badge {
   display: inline-flex;

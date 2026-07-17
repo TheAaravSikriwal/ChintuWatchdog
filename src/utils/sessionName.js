@@ -96,15 +96,12 @@ export function nameFromEvent(event) {
   if (event.kind !== 'message' || event.role !== 'user') return null;
   if (!event.text) return null;
 
-  // Skip Claude command envelope messages (e.g. /model, /rename, /color)
-  // These start with <command- XML tags and are not real user prompts.
+  // Skip injected XML-envelope "messages" — these are system/IDE context,
+  // not real user prompts, and make terrible session names. Covers command
+  // envelopes (/model, /rename, …), system reminders, task notifications, and
+  // IDE context (<ide_opened_file>, <ide_selection>, …).
   const trimmed = event.text.trim();
-  if (trimmed.startsWith('<command-') || trimmed.startsWith('<local-command')) {
-    return null;
-  }
-
-  // Skip system-reminder / task-notification XML content
-  if (trimmed.startsWith('<system-reminder') || trimmed.startsWith('<task-notification')) {
+  if (/^<(command-|local-command|system-reminder|task-notification|ide_)/.test(trimmed)) {
     return null;
   }
 

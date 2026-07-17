@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { buildResultMap } from '../utils/resultPairing'
 import { useDurationTick } from '../hooks/useDurationTick'
 import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
+import { dayKey, dayLabel, todayKey, getActivityDays } from '../utils/dayGrouping'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
 import DelegationBadge from './DelegationBadge'
@@ -46,13 +48,26 @@ function compareEvents(a, b) {
   return (a.sourceSeq ?? 0) - (b.sourceSeq ?? 0)
 }
 
-export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSession }) {
+export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSession, day, onSelectDay }) {
   const scrollRef = useRef(null)
   const prevTotalRef = useRef(0)
   const [eventOffset, setEventOffset] = useState(0)
   const durationTick = useDurationTick()
 
-  // Collect and sort all events across all sessions
+  // Which day is being shown (null prop = today's live chat).
+  const tKey = todayKey()
+  const selectedDay = day || tKey
+
+  // Available days (newest first) for prev/next navigation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const activityDays = useMemo(() => getActivityDays(sessionsRef.current), [sessionsVersion])
+  const dayIdx = activityDays.findIndex(d => d.key === selectedDay)
+  const newerDay = dayIdx > 0 ? activityDays[dayIdx - 1].key : null           // toward today
+  const olderDay = dayIdx >= 0 && dayIdx < activityDays.length - 1
+    ? activityDays[dayIdx + 1].key : null                                     // back in time
+  const goDay = (key) => { if (key && onSelectDay) onSelectDay(key === tKey ? null : key); setEventOffset(0) }
+
+  // Collect and sort the selected day's events across all sessions
   const { allTaggedEvents, resultMap } = useMemo(() => {
     const sessions = sessionsRef.current
     if (!sessions || sessions.size === 0) return { allTaggedEvents: [], resultMap: new Map() }
@@ -61,6 +76,10 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
     const tagged = []
     for (const session of sessions.values()) {
       for (const ev of session.events) {
+        // Scope to the selected day. Events without a timestamp fall back to
+        // the session's last-activity day so they still surface somewhere.
+        const ts = ev.timestamp ? new Date(ev.timestamp) : session.lastEventAt
+        if (!ts || dayKey(ts) !== selectedDay) continue
         // Only keep events that actually render as a row. Results are shown
         // inside their action's card, and system messages (except
         // session_start dividers) are never rendered. Filtering here — rather
@@ -96,7 +115,7 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
 
     return { allTaggedEvents: tagged, resultMap: rm }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionsVersion])
+  }, [sessionsVersion, selectedDay])
 
   const totalEvents = allTaggedEvents.length
   const startIdx = Math.max(0, totalEvents - RENDER_CAP - eventOffset)
@@ -207,8 +226,34 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
     )
   }
 
+  const isToday = selectedDay === tKey
+
   return (
     <>
+      {/* Day navigator — each day is its own "chat"; today is live */}
+      <div className="all-agents-daybar">
+        <button
+          className="all-agents-daybar-nav"
+          onClick={() => goDay(olderDay)}
+          disabled={!olderDay}
+          title="Earlier day"
+        >
+          <IconChevronLeft size={16} stroke={1.75} />
+        </button>
+        <div className="all-agents-daybar-title">
+          <span className="all-agents-daybar-day">{dayLabel(selectedDay)}</span>
+          {isToday && <span className="all-agents-daybar-live">live</span>}
+        </div>
+        <button
+          className="all-agents-daybar-nav"
+          onClick={() => goDay(newerDay)}
+          disabled={!newerDay}
+          title="Later day"
+        >
+          <IconChevronRight size={16} stroke={1.75} />
+        </button>
+      </div>
+
       <div className="conversation-scroll" ref={scrollRef}>
         {hiddenCount > 0 && (
           <button className="conversation-load-earlier" onClick={loadEarlier}>
@@ -217,7 +262,9 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
         )}
         {visibleTagged.length === 0 && (
           <div className="conversation-empty">
-            No events yet across any sessions
+            {isToday
+              ? 'Nothing yet today — activity from every agent will show up here.'
+              : `Nothing happened on ${dayLabel(selectedDay)}.`}
           </div>
         )}
         {visibleTagged.map((tagged, idx) => renderTagged(tagged, idx))}

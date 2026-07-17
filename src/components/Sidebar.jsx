@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { IconEdit, IconUsers, IconSearch, IconX } from '@tabler/icons-react'
 import ThreadRow from './ThreadRow'
+import { getActivityDays, todayKey } from '../utils/dayGrouping'
 import './Sidebar.css'
 
 const HISTORY_SECTION_LIMIT = 5
@@ -74,6 +75,7 @@ export default function Sidebar({
   lastEventReceivedAt,
   activeSessionId,
   showAllAgents,
+  allAgentsDay,
   searchQuery,
   onSearchChange,
   onSelectSession,
@@ -84,6 +86,8 @@ export default function Sidebar({
   const [focusedIndex, setFocusedIndex] = useState(-1)
 
   const grouped = getGroupedSessions()
+  const activityDays = getActivityDays(sessionsRef.current)
+  const tKey = todayKey()
 
   // Count stats
   let activeCount = 0
@@ -173,22 +177,39 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* All agents row */}
-      <div
-        className={`sidebar-all-agents-row${showAllAgents ? ' selected' : ''}`}
-        onClick={onShowAllAgents}
-        role="button"
-        tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && onShowAllAgents()}
-      >
-        <div className="sidebar-all-agents-avatar">
-          <IconUsers size={14} stroke={1.5} />
-        </div>
-        <span className="sidebar-all-agents-label">All agents</span>
-      </div>
-
       {/* Thread list */}
       <div className="sidebar-thread-list">
+        {!searchActive && (
+          <div className="sidebar-section">
+            <div className="sidebar-all-agents-row" style={{ marginBottom: 2 }}>
+              <div className="sidebar-all-agents-avatar">
+                <IconUsers size={14} stroke={1.5} />
+              </div>
+              <span className="sidebar-all-agents-label">All agents</span>
+            </div>
+            {activityDays.map(day => {
+              const isActive = showAllAgents &&
+                (allAgentsDay ? allAgentsDay === day.key : day.key === tKey)
+              return (
+                <div
+                  key={day.key}
+                  className={`sidebar-day-row${isActive ? ' selected' : ''}`}
+                  onClick={() => onShowAllAgents(day.key === tKey ? null : day.key)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => e.key === 'Enter' && onShowAllAgents(day.key === tKey ? null : day.key)}
+                >
+                  <span className="sidebar-day-label">{day.label}</span>
+                  <span className="sidebar-day-meta">
+                    {day.count > 0
+                      ? `${day.agents} ${day.agents === 1 ? 'agent' : 'agents'}`
+                      : 'nothing yet'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
         {searchActive ? (
           <div className="sidebar-search-results">
             {searchResults.length === 0 ? (

@@ -13,6 +13,7 @@ function App() {
 
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [showAllAgents, setShowAllAgents] = useState(false)
+  const [allAgentsDay, setAllAgentsDay] = useState(null) // day key ('YYYY-MM-DD'); null = today
   const [showNewSession, setShowNewSession] = useState(false)
   const [showBroadView, setShowBroadView] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -27,8 +28,9 @@ function App() {
     if (sessionId) markSessionViewed(sessionId)
   }, [markSessionViewed])
 
-  const handleShowAllAgents = useCallback(() => {
+  const handleShowAllAgents = useCallback((dayKey = null) => {
     setShowAllAgents(true)
+    setAllAgentsDay(dayKey)  // null = today's live chat
     setActiveSessionId(null)
     setShowNewSession(false)
   }, [])
@@ -112,6 +114,7 @@ function App() {
         lastEventReceivedAt={lastEventReceivedAt}
         activeSessionId={activeSessionId}
         showAllAgents={showAllAgents}
+        allAgentsDay={allAgentsDay}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSelectSession={handleSelectSession}
@@ -126,6 +129,8 @@ function App() {
           <ConversationView
             session={activeSession}
             showAllAgents={showAllAgents}
+            allAgentsDay={allAgentsDay}
+            onSelectAllAgentsDay={handleShowAllAgents}
             sessionsRef={sessionsRef}
             sessionsVersion={sessionsVersion}
             showBroadView={showBroadView}
