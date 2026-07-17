@@ -18,6 +18,7 @@ function createSession(event, meta) {
       : new Map(),
     continuationOf: meta?.continuationOf || null,
     events: [],
+    seenSeqs: new Set(),   // sourceSeqs already ingested — guards against double-ingest
     inputState: 'idle',
     isOwned: false,
     startedAt: event.timestamp ? new Date(event.timestamp) : null,
@@ -71,6 +72,14 @@ export function useSessions() {
         sess = createSession(event, meta)
         sessions.set(sessionId, sess)
       }
+
+      // Skip events already ingested. sourceSeq is unique per session file, so
+      // it identifies an event within a session. This makes ingestion
+      // idempotent — guarding against StrictMode's double initial-load and any
+      // overlap between the initial snapshot and the live stream (which would
+      // otherwise duplicate every event and produce duplicate React keys).
+      if (sess.seenSeqs.has(event.sourceSeq)) continue
+      sess.seenSeqs.add(event.sourceSeq)
 
       // Push event and update timestamps
       sess.events.push(event)

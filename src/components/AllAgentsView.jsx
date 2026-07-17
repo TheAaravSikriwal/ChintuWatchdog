@@ -61,6 +61,17 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
     const tagged = []
     for (const session of sessions.values()) {
       for (const ev of session.events) {
+        // Only keep events that actually render as a row. Results are shown
+        // inside their action's card, and system messages (except
+        // session_start dividers) are never rendered. Filtering here — rather
+        // than returning null mid-render — keeps the render cap counting real
+        // rows and the "session changed" header logic correct (otherwise a
+        // block starting with a skipped event loses its header, and skipped
+        // events between two rows of the same session spawn stray headers).
+        if (ev.kind === 'result') continue
+        if (ev.role === 'system' && ev.kind !== 'session_start') continue
+        if (ev.kind !== 'session_start' && ev.kind !== 'message'
+            && ev.kind !== 'thinking' && ev.kind !== 'action') continue
         tagged.push({ ev, session })
       }
     }
@@ -168,6 +179,7 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
             event={ev}
             onSelectSession={onSelectSession}
             subagentLinks={session.subagentLinks}
+            sessionsRef={sessionsRef}
           />
         </div>
       )

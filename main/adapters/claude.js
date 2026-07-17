@@ -126,9 +126,15 @@ function parseLine(line, sessionId, seq) {
 
   if (type === 'queue-operation') {
     const op = typeof obj.operation === 'string' ? obj.operation : ''
-    if (op === 'enqueue') {
-      const toolUseId = typeof obj.tool_use_id === 'string' ? obj.tool_use_id : null
-      const taskId = typeof obj.task_id === 'string' ? obj.task_id : null
+    // The enqueue content is a string carrying a <task-notification> envelope
+    // that links the spawning tool call to the sub-agent it launched:
+    //   <task-id>a0a1…</task-id><tool-use-id>toolu_…</tool-use-id>
+    // The sub-agent's session file is agent-<task-id>.jsonl. (These are NOT
+    // top-level fields — they live inside the content string.)
+    const content = typeof obj.content === 'string' ? obj.content : ''
+    if (op === 'enqueue' && content) {
+      const taskId = content.match(/<task-id>([^<]+)<\/task-id>/)?.[1]
+      const toolUseId = content.match(/<tool-use-id>([^<]+)<\/tool-use-id>/)?.[1]
       if (toolUseId && taskId) {
         return {
           events: [],

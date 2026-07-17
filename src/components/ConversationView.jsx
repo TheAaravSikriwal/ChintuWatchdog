@@ -262,6 +262,7 @@ export default function ConversationView({
             event={ev}
             onSelectSession={onSelectSession}
             subagentLinks={session.subagentLinks}
+            sessionsRef={sessionsRef}
           />
         </div>
       )
