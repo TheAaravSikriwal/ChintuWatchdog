@@ -52,16 +52,26 @@ export function isWaitingForUser(session) {
  * @returns {'working'|'waiting'|'idle'|'quiet'|'stale'|'unclean'}
  */
 export function computeSessionStatus(session) {
-  const { lastEventAt, inputState } = session;
+  const { lastEventAt, inputState, errorCount = 0 } = session;
   const ageMs = Date.now() - lastEventAt.getTime();
 
   const MIN1 = 60 * 1000;
   const MIN10 = 10 * 60 * 1000;
   const MIN60 = 60 * 60 * 1000;
 
-  if (ageMs > MIN60 && inputState === 'busy') return 'unclean';
-  if (ageMs > MIN10 && inputState === 'busy') return 'stale';
-  if (ageMs > MIN10) return 'quiet';
+  // Not recently active (older than 10 min).
+  if (ageMs > MIN10) {
+    // "Something went wrong" is reserved for sessions that actually hit errors.
+    // A session that merely stopped with an unfinished action isn't an alarm —
+    // if it happened a while ago it just wrapped up.
+    if (inputState === 'busy') {
+      if (errorCount > 0) return 'unclean';
+      return ageMs > MIN60 ? 'quiet' : 'stale';
+    }
+    return 'quiet';
+  }
+
+  // Recently active.
   if (isWaitingForUser(session)) return 'waiting';
   if (ageMs > MIN1) return 'idle';
   return 'working';

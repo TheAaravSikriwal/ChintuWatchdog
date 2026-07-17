@@ -198,6 +198,7 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
             resultEvent={resultMap.get(`${session.sessionId}:${ev.sourceSeq}`) || null}
             agentColor={agentColor}
             durationTick={durationTick}
+            sessionActive={(Date.now() - session.lastEventAt.getTime()) < 10 * 60 * 1000}
             subagentLinks={session.subagentLinks}
             sessionsRef={sessionsRef}
             onSelectSession={onSelectSession}

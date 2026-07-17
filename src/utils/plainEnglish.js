@@ -15,18 +15,30 @@ function fileBasename(filePath) {
 }
 
 /**
- * Convert a camelCase or snake_case tool name into a readable label.
+ * Convert a raw tool name into a readable label. Handles MCP tool ids of the
+ * form `mcp__<server>__<tool>` — the `mcp__…__` scaffolding is engineer-speak
+ * and must not leak into the plain-English feed.
  */
 function humanizeRawTool(rawTool) {
-  if (!rawTool) return 'tool';
-  const words = rawTool
-    .replace(/_/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .toLowerCase()
-    .split(' ')
-    .filter(Boolean);
+  if (!rawTool) return 'a tool';
 
-  if (words.length === 0) return rawTool;
+  // MCP tools: mcp__Server_Name__tool_name
+  if (rawTool.startsWith('mcp__')) {
+    const parts = rawTool.split('__').filter(Boolean);
+    const server = (parts[1] || '').toLowerCase();
+    const tool = parts.slice(2).join(' ');
+    // Browser/preview servers → a single friendly phrase.
+    if (/browser|chrome|preview|playwright|puppeteer/.test(server)) return 'the browser'
+    // Otherwise humanize just the tool action, dropping the mcp/server noise.
+    return titleCaseWords(tool || server);
+  }
+
+  return titleCaseWords(rawTool.replace(/([a-z])([A-Z])/g, '$1 $2'));
+}
+
+function titleCaseWords(s) {
+  const words = String(s).replace(/_/g, ' ').toLowerCase().split(' ').filter(Boolean);
+  if (words.length === 0) return 'a tool';
   words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
   return words.join(' ');
 }

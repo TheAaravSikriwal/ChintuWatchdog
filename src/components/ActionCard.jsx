@@ -29,7 +29,7 @@ function formatRunningDuration(seconds) {
 // detail (command, path, tool, raw output) is always one click away.
 
 export default function ActionCard({
-  event, resultEvent, durationTick,
+  event, resultEvent, durationTick, sessionActive,
   subagentLinks, sessionsRef, onSelectSession,
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -38,16 +38,22 @@ export default function ActionCard({
   const { kind, targetId } = classifyAction(event, subagentLinks, sessionsRef)
   const { line, tag } = narrateAction(event, kind, completed)
 
-  // Duration (only when we have timestamps)
+  // Duration + running state. Only show a live "working…" timer while the
+  // session is actually active — otherwise an unfinished action would count
+  // up forever (e.g. "working 325m"). For a session that has moved on, an
+  // action with no result simply didn't finish.
   let durationText = null
   let running = false
-  if (event.timestamp) {
-    if (resultEvent && resultEvent.timestamp) {
-      durationText = formatDuration((new Date(resultEvent.timestamp) - new Date(event.timestamp)) / 1000)
-    } else if (!resultEvent) {
+  let unfinished = false
+  if (completed && event.timestamp && resultEvent.timestamp) {
+    durationText = formatDuration((new Date(resultEvent.timestamp) - new Date(event.timestamp)) / 1000)
+  } else if (!completed) {
+    if (sessionActive && event.timestamp) {
       void durationTick // re-render tick
       running = true
       durationText = formatRunningDuration((Date.now() - new Date(event.timestamp).getTime()) / 1000)
+    } else {
+      unfinished = true
     }
   }
 
@@ -58,6 +64,7 @@ export default function ActionCard({
   // Status suffix — plain words, not a heavy pill.
   let status = null
   if (running) status = <span className="msg-status msg-status-run">· working{durationText ? ` ${durationText}` : ''}…</span>
+  else if (unfinished) status = <span className="msg-status">· didn't finish</span>
   else if (hasError) status = <span className="msg-status msg-status-err">· ran into a problem</span>
   else if (completed && qctx) status = <span className="msg-status">· {qctx}</span>
   else if (completed && durationText) status = <span className="msg-status">· {durationText}</span>

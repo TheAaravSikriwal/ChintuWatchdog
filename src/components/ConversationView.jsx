@@ -205,6 +205,7 @@ export default function ConversationView({
   }
 
   const status = computeSessionStatus(session)
+  const sessionActive = (Date.now() - session.lastEventAt.getTime()) < 10 * 60 * 1000
   const statusLabel = STATUS_LABELS[status]
   const statusColor = STATUS_COLORS[status]
   const statusBg = STATUS_BG[status]
@@ -267,6 +268,7 @@ export default function ConversationView({
             resultEvent={resultMap.get(ev.sourceSeq) || null}
             agentColor={agentColor}
             durationTick={durationTick}
+            sessionActive={sessionActive}
             subagentLinks={session.subagentLinks}
             sessionsRef={sessionsRef}
             onSelectSession={onSelectSession}
