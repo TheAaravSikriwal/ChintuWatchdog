@@ -25,6 +25,7 @@ const codex = require('./adapters/codex')
 const cursor = require('./adapters/cursor')
 const aider = require('./adapters/aider')
 const antigravity = require('./adapters/antigravity')
+const { newMeta, processLines, metaToPatch } = require('./session-parse')
 
 // ── Batch accumulator ──────────────────────────────────────────────
 
@@ -78,10 +79,12 @@ class FileState {
    */
   constructor(sessionId, adapter) {
     this.sessionId = sessionId
+    this.fileSessionId = sessionId  // stable baseline for continuation detection
     this.adapter = adapter
     this.byteOffset = 0
     this.seq = 0
     this.holdback = ''  // partial last line from previous read
+    this.meta = newMeta()  // metadata accumulated across reads
   }
 }
 
@@ -239,14 +242,16 @@ class SessionWatcher {
    */
   _rescan() {
     const newEvents = []
+    const sessionMeta = {}
 
     for (const source of this.agentSources) {
       // Discover sessions (includes dirs that may not have existed at launch)
       const sessions = source.discover()
       for (const session of sessions) {
         if (this.fileStates.has(session.path)) continue  // already tracked
-        const events = this._parseFile(session.path, session.sessionId, source.adapter)
-        newEvents.push(...events)
+        const res = this._parseFile(session.path, session.sessionId, source.adapter)
+        newEvents.push(...res.events)
+        this._collectMeta(sessionMeta, res.sessionId, res.meta)
       }
     }
 
@@ -254,8 +259,15 @@ class SessionWatcher {
     this._watchNewDirs()
 
     if (newEvents.length > 0) {
-      this.onEvents(newEvents)
+      this.onEvents(newEvents, sessionMeta)
     }
+  }
+
+  /** Merge a file's metadata patch into the per-batch sessionMeta map. */
+  _collectMeta(sessionMeta, sessionId, meta) {
+    const patch = metaToPatch(meta)
+    if (!patch) return
+    sessionMeta[sessionId] = { ...(sessionMeta[sessionId] || {}), ...patch }
   }
 
   _onFileChange(filePath, source) {
@@ -279,38 +291,43 @@ class SessionWatcher {
     if (batch.fullSync) {
       // Overflow: rescan all agents
       const allEvents = []
+      const sessionMeta = {}
       for (const source of this.agentSources) {
         const sessions = source.discover()
         for (const session of sessions) {
-          const events = this._parseFile(session.path, session.sessionId, source.adapter)
-          allEvents.push(...events)
+          const res = this._parseFile(session.path, session.sessionId, source.adapter)
+          allEvents.push(...res.events)
+          this._collectMeta(sessionMeta, res.sessionId, res.meta)
         }
       }
       if (allEvents.length > 0) {
-        this.onEvents(allEvents)
+        this.onEvents(allEvents, sessionMeta)
       }
       return
     }
 
     // Normal batch: parse only changed files
     const allEvents = []
+    const sessionMeta = {}
     for (const filePath of batch.paths) {
       const existing = this.fileStates.get(filePath)
       if (existing) {
-        const events = this._readNewEvents(filePath, existing)
-        allEvents.push(...events)
+        const res = this._readNewEvents(filePath, existing)
+        allEvents.push(...res.events)
+        this._collectMeta(sessionMeta, res.sessionId, res.meta)
       } else {
         // New file — find its adapter from the path
         const source = this._sourceForPath(filePath)
         if (source) {
           const sessionId = source.makeSessionId(filePath)
-          const events = this._parseFile(filePath, sessionId, source.adapter)
-          allEvents.push(...events)
+          const res = this._parseFile(filePath, sessionId, source.adapter)
+          allEvents.push(...res.events)
+          this._collectMeta(sessionMeta, res.sessionId, res.meta)
         }
       }
     }
     if (allEvents.length > 0) {
-      this.onEvents(allEvents)
+      this.onEvents(allEvents, sessionMeta)
     }
   }
 
@@ -330,7 +347,7 @@ class SessionWatcher {
 
   /**
    * Parse a file, emitting only new events since last read.
-   * Returns the new events.
+   * Returns { events, sessionId, meta }.
    */
   _parseFile(filePath, sessionId, adapter) {
     let state = this.fileStates.get(filePath)
@@ -343,19 +360,22 @@ class SessionWatcher {
 
   /**
    * Read new bytes from a file, split into lines, parse each.
-   * Handles partial-line holdback and truncation detection.
-   * Routes each line to the FileState's adapter.
+   * Handles partial-line holdback. Routes lines to the FileState's adapter
+   * via the shared processLines(), accumulating metadata on the FileState.
+   * Returns { events, sessionId, meta }.
    */
   _readNewEvents(filePath, state) {
     let buf
     try {
       buf = fs.readFileSync(filePath)
     } catch {
-      return []
+      return { events: [], sessionId: state.sessionId, meta: state.meta }
     }
 
     // Nothing new
-    if (buf.length <= state.byteOffset) return []
+    if (buf.length <= state.byteOffset) {
+      return { events: [], sessionId: state.sessionId, meta: state.meta }
+    }
 
     // Read only new data, prepending any holdback from last read
     const newData = buf.slice(state.byteOffset)
@@ -382,48 +402,16 @@ class SessionWatcher {
 
     state.byteOffset = buf.length
 
-    // Parse complete lines through the adapter
-    const events = []
-    let lastMsgId = null    // streaming dedup: track last message.id
-    let lastMsgIdStart = 0  // index into events[] where that batch started
-    let lastMsgIdSeq = 0    // seq at that point (to reset on replace)
+    // Parse complete lines through the shared processor. The cursor carries
+    // seq / sessionId across reads; state.meta accumulates metadata.
+    const cursor = { sessionId: state.sessionId, seq: state.seq }
+    const { events } = processLines(
+      rawLines, state.adapter, cursor, state.meta, state.fileSessionId
+    )
+    state.seq = cursor.seq
+    state.sessionId = cursor.sessionId
 
-    for (const rawLine of rawLines) {
-      const line = rawLine.trim()
-      if (!line) continue
-
-      let result
-      try {
-        result = state.adapter.parseLine(line, state.sessionId, state.seq)
-      } catch {
-        continue
-      }
-
-      // Streaming dedup (Claude): consecutive lines sharing a message.id
-      // are cumulative snapshots. Keep only the last batch.
-      if (result.messageId) {
-        if (result.messageId === lastMsgId) {
-          // Replace previous batch — this snapshot supersedes it
-          events.length = lastMsgIdStart
-          state.seq = lastMsgIdSeq
-        }
-        lastMsgId = result.messageId
-        lastMsgIdStart = events.length
-        lastMsgIdSeq = state.seq
-      } else if (result.events.length > 0) {
-        lastMsgId = null
-      }
-
-      events.push(...result.events)
-      state.seq = result.nextSeq
-      // Codex's parseLine may return a new sessionId (from session_meta).
-      // Claude's does not include sessionId in its result.
-      if ('sessionId' in result) {
-        state.sessionId = result.sessionId
-      }
-    }
-
-    return events
+    return { events, sessionId: state.sessionId, meta: state.meta }
   }
 }
 

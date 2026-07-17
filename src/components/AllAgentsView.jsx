@@ -1,25 +1,10 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { buildResultMap } from '../utils/resultPairing'
 import { useDurationTick } from '../hooks/useDurationTick'
+import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
 import DelegationBadge from './DelegationBadge'
-
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
-
-const AGENT_CODES = {
-  'claude-code': 'CL',
-  'cursor': 'CX',
-  'codex': 'CO',
-  'antigravity': 'AG',
-  'aider': 'AI',
-}
 
 const RENDER_CAP = 500
 
@@ -83,9 +68,20 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
     // Sort interleaved by timestamp + tiebreakers
     tagged.sort((a, b) => compareEvents(a.ev, b.ev))
 
-    // Build a global result map over all events (flat list)
-    const flatEvents = tagged.map(t => t.ev)
-    const rm = buildResultMap(flatEvents)
+    // Build the result map PER SESSION, then key globally by
+    // `${sessionId}:${sourceSeq}`. buildResultMap keys by sourceSeq alone,
+    // which resets to 0 per session file — so pairing across a flat
+    // multi-session list would collide (and its sequence fallback would
+    // pair an action in one session with a result from another, since the
+    // flat list is interleaved by timestamp). Pairing within each session
+    // keeps both the toolUseId match and the sequence fallback correct.
+    const rm = new Map()
+    for (const session of sessions.values()) {
+      const sessionMap = buildResultMap(session.events)
+      for (const [seq, result] of sessionMap) {
+        rm.set(`${session.sessionId}:${seq}`, result)
+      }
+    }
 
     return { allTaggedEvents: tagged, resultMap: rm }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,7 +176,7 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
         <div key={key}>
           <ActionCard
             event={ev}
-            resultEvent={resultMap.get(ev.sourceSeq) || null}
+            resultEvent={resultMap.get(`${session.sessionId}:${ev.sourceSeq}`) || null}
             agentColor={agentColor}
             durationTick={durationTick}
           />

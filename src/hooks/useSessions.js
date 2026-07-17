@@ -86,13 +86,19 @@ export function useSessions() {
         if (!sess.parentSessionId && meta.parentSessionId) {
           sess.parentSessionId = meta.parentSessionId
         }
-        if (meta.subagentLinks && sess.subagentLinks.size === 0) {
-          sess.subagentLinks = new Map(Object.entries(meta.subagentLinks))
+        if (meta.subagentLinks && Object.keys(meta.subagentLinks).length > 0) {
+          // Merge in new links rather than only seeding an empty map, so
+          // sub-agent links discovered live (after the session exists) apply.
+          for (const [k, v] of Object.entries(meta.subagentLinks)) {
+            sess.subagentLinks.set(k, v)
+          }
         }
         if (!sess.continuationOf && meta.continuationOf) {
           sess.continuationOf = meta.continuationOf
         }
-        if (meta.renamedTo && !sess.nameIsFrozen) {
+        // An explicit /rename is authoritative — it overrides the auto-derived
+        // name even after it was frozen from the first user message.
+        if (meta.renamedTo) {
           sess.name = meta.renamedTo
           sess.nameIsFrozen = true
         }
@@ -139,8 +145,11 @@ export function useSessions() {
 
   // ── Live event stream ─────────────────────────────────────────────────────
   useEffect(() => {
-    const cleanup = window.watchdog.onEvents((newEvents) => {
-      ingestEvents(newEvents, null, false)
+    const cleanup = window.watchdog.onEvents((payload) => {
+      // Payload is { events, sessionMeta }; tolerate a bare array (old shape).
+      const newEvents = Array.isArray(payload) ? payload : (payload?.events ?? [])
+      const sessionMeta = Array.isArray(payload) ? null : (payload?.sessionMeta ?? null)
+      ingestEvents(newEvents, sessionMeta, false)
     })
 
     // onEvents may return a cleanup/unsubscribe function — call it if so

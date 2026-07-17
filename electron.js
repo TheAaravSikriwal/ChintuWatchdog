@@ -40,9 +40,9 @@ function createWindow() {
 // This boundary enforces the adapter abstraction for free.
 
 function startWatcher() {
-  watcher = new SessionWatcher((events) => {
+  watcher = new SessionWatcher((events, sessionMeta) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('watchdog:events', events)
+      mainWindow.webContents.send('watchdog:events', { events, sessionMeta: sessionMeta || {} })
     }
   })
   watcher.start()
@@ -62,6 +62,7 @@ ipcMain.handle('watchdog:get-initial-events', () => {
   const aider = require('./main/adapters/aider')
   const antigravity = require('./main/adapters/antigravity')
   const { compareEvents } = require('./main/event')
+  const { newMeta, processLines, metaToPatch } = require('./main/session-parse')
 
   console.log('[watchdog] Loading initial events from all agents...')
   const sources = [
@@ -79,96 +80,29 @@ ipcMain.handle('watchdog:get-initial-events', () => {
     for (const session of sessions) {
       let buf
       try { buf = fs.readFileSync(session.path) } catch { continue }
-      const text = buf.toString('utf-8')
-      const lines = text.split('\n')
-      let seq = 0
-      let sessionId = session.sessionId
-      let lastMsgId = null
-      let lastMsgIdStart = 0
-      let lastMsgIdSeq = 0
-      const subagentLinks = {}
-      let renamedTo = null
-      let continuationOf = null
-      let foundSourceSession = false
+      const lines = buf.toString('utf-8').split('\n')
 
-      // Initialize metadata from discovery
-      if (!sessionMeta[session.sessionId]) {
-        sessionMeta[session.sessionId] = {
-          parentSessionId: session.parentSessionId || null,
-          subagentLinks: {},
-          renamedTo: null,
-          continuationOf: null,
-        }
+      // Parse the whole file through the shared processor.
+      const cursor = { sessionId: session.sessionId, seq: 0 }
+      const meta = newMeta()
+      const { events } = processLines(lines, adapter, cursor, meta, session.sessionId)
+      allEvents.push(...events)
+
+      // Key metadata by the effective session id (Codex may override it).
+      const metaKey = cursor.sessionId
+      const base = sessionMeta[metaKey] || {
+        parentSessionId: session.parentSessionId || null,
+        subagentLinks: {},
+        renamedTo: null,
+        continuationOf: null,
       }
-
-      for (const rawLine of lines) {
-        const line = rawLine.trim()
-        if (!line) continue
-        let result
-        try {
-          result = adapter.parseLine(line, sessionId, seq)
-        } catch {
-          continue
-        }
-
-        // Collect sub-agent links from queue-operation and progress events
-        if (result.subagentLink) {
-          const { toolUseId, subagentSessionId } = result.subagentLink
-          subagentLinks[toolUseId] = subagentSessionId
-        }
-
-        // Collect /rename display name (last rename wins)
-        if (result.renamedTo !== undefined && result.renamedTo !== null) {
-          renamedTo = result.renamedTo
-        }
-
-        // Continuation detection: if the inner sessionId differs from
-        // the file-derived sessionId, this file continues that session.
-        if (!foundSourceSession && result.sourceSessionId) {
-          foundSourceSession = true
-          if (result.sourceSessionId !== session.sessionId) {
-            continuationOf = result.sourceSessionId
-          }
-        }
-
-        // Streaming dedup (Claude)
-        if (result.messageId) {
-          if (result.messageId === lastMsgId) {
-            allEvents.length = lastMsgIdStart
-            seq = lastMsgIdSeq
-          }
-          lastMsgId = result.messageId
-          lastMsgIdStart = allEvents.length
-          lastMsgIdSeq = seq
-        } else if (result.events.length > 0) {
-          lastMsgId = null
-        }
-        allEvents.push(...result.events)
-        seq = result.nextSeq
-        if ('sessionId' in result) {
-          sessionId = result.sessionId
-        }
+      const patch = metaToPatch(meta)
+      if (patch) {
+        if (patch.subagentLinks) Object.assign(base.subagentLinks, patch.subagentLinks)
+        if (patch.renamedTo) base.renamedTo = patch.renamedTo
+        if (patch.continuationOf) base.continuationOf = patch.continuationOf
       }
-
-      // Merge collected metadata into session meta
-      const metaKey = sessionId
-      if (!sessionMeta[metaKey]) {
-        sessionMeta[metaKey] = {
-          parentSessionId: session.parentSessionId || null,
-          subagentLinks: {},
-          renamedTo: null,
-          continuationOf: null,
-        }
-      }
-      if (Object.keys(subagentLinks).length > 0) {
-        Object.assign(sessionMeta[metaKey].subagentLinks, subagentLinks)
-      }
-      if (renamedTo) {
-        sessionMeta[metaKey].renamedTo = renamedTo
-      }
-      if (continuationOf) {
-        sessionMeta[metaKey].continuationOf = continuationOf
-      }
+      sessionMeta[metaKey] = base
     }
   }
 
