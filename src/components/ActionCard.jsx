@@ -14,15 +14,15 @@ import {
 import { actionLabel, quantitativeContext } from '../utils/plainEnglish'
 import { resultHasError } from '../utils/resultPairing'
 
-// ── Icon config by action type ───────────────────────────────────────────────
+// ── Icon config — warm marigold-aligned palette ─────────────────────────────
 
 const ACTION_ICON_CONFIG = {
-  read_file:   { bg: '#FFF0DC', color: '#EA8C1D', Icon: IconFileText },
-  write_file:  { bg: '#EFF6FF', color: '#2563EB', Icon: IconFilePencil },
-  edit_file:   { bg: '#E8F5E9', color: '#16A34A', Icon: IconEdit },
-  run_command: { bg: '#FFF0DC', color: '#EA8C1D', Icon: IconTerminal },
-  search:      { bg: null,      color: null,       Icon: IconSearch },
-  task:        { bg: null,      color: null,       Icon: IconSubtask },
+  read_file:   { bg: 'rgba(234,140,29,0.12)', color: 'var(--fill-accent)', Icon: IconFileText },
+  write_file:  { bg: 'rgba(34,197,94,0.10)',  color: 'var(--text-success)', Icon: IconFilePencil },
+  edit_file:   { bg: 'rgba(34,197,94,0.10)',  color: 'var(--text-success)', Icon: IconEdit },
+  run_command: { bg: 'rgba(234,140,29,0.12)', color: 'var(--fill-accent)', Icon: IconTerminal },
+  search:      { bg: null,                    color: null,                  Icon: IconSearch },
+  task:        { bg: null,                    color: null,                  Icon: IconSubtask },
 }
 
 function getIconConfig(action) {
@@ -47,13 +47,6 @@ function formatRunningDuration(seconds) {
     return `${m}m ${s}s+`
   }
   return `${seconds.toFixed(0)}s+`
-}
-
-// ── File basename helper ─────────────────────────────────────────────────────
-
-function fileBasename(filePath) {
-  if (!filePath) return ''
-  return filePath.replace(/\\/g, '/').split('/').pop() || filePath
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
@@ -142,7 +135,7 @@ export default function ActionCard({ event, resultEvent, agentColor, durationTic
           className="action-icon-square"
           style={{ background: resolvedIconBg }}
         >
-          <Icon size={16} color={resolvedIconColor} />
+          <Icon size={15} color={resolvedIconColor} />
         </div>
 
         {/* Middle: label + target */}

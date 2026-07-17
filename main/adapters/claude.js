@@ -32,13 +32,14 @@ function getProjectsDir() {
 
 /**
  * Extract parent session ID from a sub-agent file path.
- * Sub-agents live at: <projectsDir>/<project>/subagents/<parentSessionId>/<agent-file>.jsonl
+ * Sub-agents live at: <projectsDir>/<project>/<parentSessionId>/subagents/<agent-file>.jsonl
+ * The parent is the directory BEFORE 'subagents', not after.
  */
 function getParentSessionId(filePath, sessionId) {
   if (!sessionId.startsWith('agent-')) return null
   const parts = filePath.split(/[/\\]/)
   const idx = parts.indexOf('subagents')
-  if (idx >= 0 && idx + 1 < parts.length) return parts[idx + 1]
+  if (idx >= 1) return parts[idx - 1]
   return null
 }
 
@@ -73,7 +74,10 @@ function _scanDir(dir, project, sessions, depth) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory() || entry.isSymbolicLink()) {
-      if (entry.name === 'subagents' || depth > 0) {
+      // At depth 0: recurse into 'subagents' dirs AND session UUID dirs
+      // (which contain their own subagents/ subdirectory).
+      // At depth 1+: recurse into everything.
+      if (entry.name === 'subagents' || depth > 0 || /^[0-9a-f]{8}-/.test(entry.name)) {
         _scanDir(fullPath, project, sessions, depth + 1)
       }
     } else if (entry.name.endsWith('.jsonl')) {

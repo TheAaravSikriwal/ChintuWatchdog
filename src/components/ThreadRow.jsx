@@ -46,7 +46,7 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
   const lastEvent = session.events.length > 0 ? session.events[session.events.length - 1] : null
   const preview = eventPreview(lastEvent)
 
-  // Unread indicator
+  // Unread indicator — now marigold instead of blue
   const hasUnread = !isSelected && session.events.length > session.lastViewedEventCount
 
   // Name with optional prefix
@@ -82,12 +82,12 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
       style={{
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 8,
-        padding: '8px 12px',
+        gap: 'var(--space-2)',
+        padding: 'var(--space-2) var(--space-3)',
         cursor: 'pointer',
-        borderRadius: 6,
-        margin: '0 4px',
-        transition: 'background 0.1s',
+        borderRadius: 'var(--radius-md)',
+        margin: '0 var(--space-1)',
+        transition: 'background var(--transition-fast)',
         background: isSelected ? 'var(--bg-accent)' : 'transparent',
         outline: isFocused && !isSelected ? '1.5px solid var(--border-accent)' : 'none',
         outlineOffset: -2,
@@ -106,7 +106,7 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: isHistorical ? 0.65 : 1,
+          opacity: isHistorical ? 0.55 : 1,
         }}>
           <span style={{
             color: '#fff',
@@ -141,10 +141,10 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
 
       {/* Text content */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--space-1)' }}>
           {/* Name */}
           <span style={{
-            fontSize: 12,
+            fontSize: 'var(--fs-sm)',
             fontWeight: 500,
             color: isHistorical ? 'var(--text-secondary)' : 'var(--text-primary)',
             overflow: 'hidden',
@@ -166,10 +166,10 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-1)' }}>
           {/* Preview */}
           <span style={{
-            fontSize: 11,
+            fontSize: 'var(--fs-xs)',
             color: 'var(--text-muted)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -180,14 +180,14 @@ export default function ThreadRow({ session, isSelected, isFocused, isSubAgent, 
             {preview}
           </span>
           {/* Badges */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flexShrink: 0 }}>
             {session.errorCount >= 1 && (
               <span style={{
                 fontSize: 10,
-                color: '#FCD34D',
-                background: 'rgba(251,191,36,0.15)',
+                color: 'var(--text-warning)',
+                background: 'var(--bg-warning)',
                 padding: '1px 5px',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 whiteSpace: 'nowrap',
               }}>
                 ⚠ {session.errorCount}

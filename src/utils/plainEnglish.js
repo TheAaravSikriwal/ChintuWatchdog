@@ -1,4 +1,5 @@
 // plainEnglish.js — Human-readable event labels
+// Narrative-first: labels tell a story for non-technical users.
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -6,23 +7,18 @@
 
 /**
  * Return the last segment of a file path (cross-platform friendly).
- * Handles both forward and back slashes.
  */
 function fileBasename(filePath) {
   if (!filePath) return '';
-  // Replace backslashes so split works uniformly
   const parts = filePath.replace(/\\/g, '/').split('/');
   return parts[parts.length - 1] || filePath;
 }
 
 /**
  * Convert a camelCase or snake_case tool name into a readable label.
- * e.g. "applyPatch" → "Apply patch"
- *      "read_file"  → "Read file"
  */
 function humanizeRawTool(rawTool) {
   if (!rawTool) return 'tool';
-  // Split on underscores and camelCase boundaries
   const words = rawTool
     .replace(/_/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -37,31 +33,61 @@ function humanizeRawTool(rawTool) {
 
 /**
  * Map a run_command target to a friendly present/past-tense label pair.
- * Returns { present, past } strings (verb + object combined).
+ * Narrative voice: tells the user what's happening in plain language.
  */
 function friendlyCommandLabel(target) {
-  if (!target) return { present: 'Running command', past: 'Ran command' };
+  if (!target) return { present: 'Running a command', past: 'Ran a command' };
 
   const t = target.trim();
 
   if (/^npm\s+test(\s|$)/i.test(t) || t === 'npm test') {
-    return { present: 'Running tests', past: 'Ran tests' };
+    return { present: 'Checking if the tests pass', past: 'Checked the tests' };
   }
   if (/^npm\s+run\s+build(\s|$)/i.test(t)) {
-    return { present: 'Building the project', past: 'Built the project' };
+    return { present: 'Building the project', past: 'Finished building' };
   }
   if (/^npm\s+install(\s|$)/i.test(t) || t === 'npm install' || /^npm\s+i(\s|$)/.test(t)) {
     return { present: 'Installing packages', past: 'Installed packages' };
   }
+  if (/^npm\s+run\s+lint(\s|$)/i.test(t)) {
+    return { present: 'Checking code style', past: 'Checked code style' };
+  }
+  if (/^npm\s+run\s+dev(\s|$)/i.test(t) || /^npm\s+start(\s|$)/i.test(t)) {
+    return { present: 'Starting the dev server', past: 'Started the dev server' };
+  }
   if (/^git\s+commit(\s|$)/i.test(t)) {
-    return { present: 'Committing changes', past: 'Committed changes' };
+    return { present: 'Saving a checkpoint', past: 'Saved a checkpoint' };
   }
   if (/^git\s+push(\s|$)/i.test(t)) {
-    return { present: 'Pushing to remote', past: 'Pushed to remote' };
+    return { present: 'Pushing changes upstream', past: 'Pushed changes upstream' };
+  }
+  if (/^git\s+pull(\s|$)/i.test(t)) {
+    return { present: 'Pulling latest changes', past: 'Pulled latest changes' };
+  }
+  if (/^git\s+status(\s|$)/i.test(t)) {
+    return { present: 'Checking what changed', past: 'Checked what changed' };
+  }
+  if (/^git\s+diff(\s|$)/i.test(t)) {
+    return { present: 'Reviewing the diff', past: 'Reviewed the diff' };
+  }
+  if (/^git\s+log(\s|$)/i.test(t)) {
+    return { present: 'Looking at recent history', past: 'Reviewed recent history' };
+  }
+  if (/^(rm|del)\s/i.test(t)) {
+    return { present: 'Cleaning up files', past: 'Cleaned up files' };
+  }
+  if (/^mkdir\s/i.test(t)) {
+    return { present: 'Creating a folder', past: 'Created a folder' };
+  }
+  if (/^(cat|type|head|tail)\s/i.test(t)) {
+    return { present: 'Peeking at a file', past: 'Peeked at a file' };
+  }
+  if (/^(ls|dir)(\s|$)/i.test(t)) {
+    return { present: 'Listing files', past: 'Listed files' };
   }
 
   // Generic fallback — truncate to 40 chars
-  const truncated = t.length > 40 ? t.slice(0, 40) : t;
+  const truncated = t.length > 40 ? t.slice(0, 40) + '…' : t;
   return { present: `Running: ${truncated}`, past: `Ran: ${truncated}` };
 }
 
@@ -71,20 +97,13 @@ function friendlyCommandLabel(target) {
 
 /**
  * Return a { verb, object } label for an action event.
- *
- * For run_command: verb is '' and object is the full friendly label string.
- *
- * @param {string} action      - action type
- * @param {string|undefined} target    - file path or command
- * @param {string|undefined} rawTool   - original tool name
- * @param {boolean} completed  - true = past tense, false = present tense
- * @returns {{ verb: string, object: string }}
+ * Narrative voice: past tense tells what happened, present tense tells what's happening.
  */
 export function actionLabel(action, target, rawTool, completed) {
   switch (action) {
     case 'read_file':
       return {
-        verb: completed ? 'Read' : 'Reading',
+        verb: completed ? 'Looked at' : 'Looking at',
         object: fileBasename(target),
       };
 
@@ -96,7 +115,7 @@ export function actionLabel(action, target, rawTool, completed) {
 
     case 'edit_file':
       return {
-        verb: completed ? 'Edited' : 'Editing',
+        verb: completed ? 'Updated' : 'Updating',
         object: fileBasename(target),
       };
 
@@ -108,19 +127,19 @@ export function actionLabel(action, target, rawTool, completed) {
     case 'search':
       return {
         verb: completed ? 'Searched' : 'Searching',
-        object: target ? `for ${target}` : '',
+        object: target ? `for "${target}"` : 'the codebase',
       };
 
     case 'task':
       return {
-        verb: completed ? 'Delegated' : 'Delegating',
-        object: target || '',
+        verb: completed ? 'Handed off' : 'Handing off',
+        object: target || 'a task',
       };
 
     case 'other':
     default:
       return {
-        verb: completed ? 'Ran' : 'Running',
+        verb: completed ? 'Used' : 'Using',
         object: humanizeRawTool(rawTool),
       };
   }
@@ -128,16 +147,13 @@ export function actionLabel(action, target, rawTool, completed) {
 
 /**
  * Return a short string suitable for the session sidebar preview.
- *
- * @param {object} event - WatchdogEvent
- * @returns {string}
  */
 export function eventPreview(event) {
   if (!event) return '';
 
   switch (event.kind) {
     case 'thinking':
-      return 'thinking it through...';
+      return 'thinking it through…';
 
     case 'message':
       if (event.role === 'assistant' && event.text) {
@@ -161,10 +177,6 @@ export function eventPreview(event) {
 /**
  * Return a short quantitative context string extracted from result text,
  * or null if one cannot be determined.
- *
- * @param {string} action      - action type
- * @param {string|null} resultText - result text
- * @returns {string|null}
  */
 export function quantitativeContext(action, resultText) {
   if (!resultText) return null;
@@ -175,11 +187,9 @@ export function quantitativeContext(action, resultText) {
       return `~${Math.round(resultText.length / 40)} lines`;
 
     case 'edit_file':
-      // edit line counts: deferred to Phase 2 when actionInput is wired
       return null;
 
     case 'search': {
-      // Extract a leading digit group from the result text
       const match = resultText.match(/^(\d+)/);
       if (match) return `${match[1]} matches`;
       return null;
@@ -188,7 +198,6 @@ export function quantitativeContext(action, resultText) {
     case 'run_command': {
       const head = resultText.slice(0, 100);
 
-      // Look for "N passed, M failed" pattern
       const passFailMatch = head.match(/(\d+)\s+passed(?:,\s*(\d+)\s+failed)?/i);
       if (passFailMatch) {
         const passed = passFailMatch[1];
@@ -196,7 +205,6 @@ export function quantitativeContext(action, resultText) {
         return failed ? `${passed} passed, ${failed} failed` : `${passed} passed`;
       }
 
-      // Look for "exit N"
       const exitMatch = head.match(/exit\s+(\d+)/i);
       if (exitMatch) return `exit ${exitMatch[1]}`;
 

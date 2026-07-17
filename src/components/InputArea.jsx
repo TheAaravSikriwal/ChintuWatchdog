@@ -45,13 +45,13 @@ export default function InputArea({ session, onNewSession }) {
   if (mode === 'read-only') {
     return (
       <div style={{
-        padding: '10px 16px',
+        padding: 'var(--space-3) var(--space-4)',
         background: 'var(--surface-1)',
         borderTop: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        fontSize: 12,
+        gap: 'var(--space-2)',
+        fontSize: 'var(--fs-sm)',
         color: 'var(--text-muted)',
         flexShrink: 0,
       }}>
@@ -63,7 +63,8 @@ export default function InputArea({ session, onNewSession }) {
             border: 'none',
             color: 'var(--text-accent)',
             cursor: 'pointer',
-            fontSize: 12,
+            fontSize: 'var(--fs-sm)',
+            fontFamily: 'var(--font-ui)',
             padding: 0,
             textDecoration: 'underline',
           }}
@@ -82,21 +83,21 @@ export default function InputArea({ session, onNewSession }) {
 
   return (
     <div style={{
-      padding: '10px 14px',
+      padding: 'var(--space-3) var(--space-4)',
       borderTop: '1px solid var(--border)',
       background: 'var(--surface-1)',
       flexShrink: 0,
     }}>
       {mode === 'waiting' && (
         <div style={{
-          fontSize: 12,
+          fontSize: 'var(--fs-sm)',
           color: 'var(--text-accent)',
-          marginBottom: 6,
+          marginBottom: 'var(--space-1)',
         }}>
           Claude is waiting for your response
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', position: 'relative' }}>
         <input
           type="text"
           value={text}
@@ -105,14 +106,23 @@ export default function InputArea({ session, onNewSession }) {
           style={{
             flex: 1,
             height: 34,
-            padding: '0 12px',
+            padding: '0 var(--space-3)',
             background: 'var(--surface-2)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
-            fontSize: 13,
+            borderRadius: 'var(--radius-lg)',
+            fontSize: 'var(--fs-sm)',
             color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sans)',
+            fontFamily: 'var(--font-ui)',
             outline: 'none',
+            transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+          }}
+          onFocus={e => {
+            e.currentTarget.style.borderColor = 'var(--border-accent)'
+            e.currentTarget.style.boxShadow = 'var(--shadow-focus)'
+          }}
+          onBlur={e => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.boxShadow = 'none'
           }}
           onKeyDown={e => {
             if (e.key === 'Enter' && text.trim()) handleActionClick()
@@ -123,17 +133,20 @@ export default function InputArea({ session, onNewSession }) {
             onClick={handleActionClick}
             style={{
               height: 34,
-              padding: '0 14px',
+              padding: '0 var(--space-4)',
               background: 'var(--fill-accent)',
               color: 'var(--on-accent)',
               border: 'none',
-              borderRadius: 20,
-              fontSize: 13,
+              borderRadius: 999,
+              fontSize: 'var(--fs-sm)',
               fontWeight: 500,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              fontFamily: 'var(--font-sans)',
+              fontFamily: 'var(--font-ui)',
+              transition: 'background var(--transition-fast)',
             }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--fill-accent-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--fill-accent)'}
           >
             {buttonLabel}
           </button>
@@ -142,16 +155,16 @@ export default function InputArea({ session, onNewSession }) {
               position: 'absolute',
               bottom: '100%',
               right: 0,
-              marginBottom: 8,
+              marginBottom: 'var(--space-2)',
               background: 'var(--surface-3)',
               border: '1px solid var(--border-strong)',
-              borderRadius: 8,
-              padding: '8px 12px',
-              fontSize: 12,
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-2) var(--space-3)',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--text-secondary)',
               whiteSpace: 'nowrap',
-              zIndex: 100,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              zIndex: 'var(--z-overlay)',
+              boxShadow: 'var(--shadow-md)',
             }}>
               {COMING_SOON_MSG}
             </div>

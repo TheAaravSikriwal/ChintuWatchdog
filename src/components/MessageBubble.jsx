@@ -66,7 +66,7 @@ export default function MessageBubble({ event, agentColor }) {
     )
   }
 
-  // User message
+  // User message — Apple Messages style: right-aligned, marigold-tinted
   if (event.kind === 'message' && event.role === 'user') {
     return (
       <div className="bubble-row bubble-row-user">
@@ -77,14 +77,11 @@ export default function MessageBubble({ event, agentColor }) {
     )
   }
 
-  // Agent message
+  // Agent message — clean, no left border, just a soft bubble
   if (event.kind === 'message' && event.role === 'assistant') {
     return (
       <div className="bubble-row bubble-row-agent">
-        <div
-          className="bubble-agent"
-          style={{ borderLeftColor: agentColor }}
-        >
+        <div className="bubble-agent">
           {event.text || ''}
         </div>
       </div>

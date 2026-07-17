@@ -1,21 +1,22 @@
 // sessionStatus.js — 6-state session status model
+// Warm, human-readable labels + marigold-aligned color palette.
 
 export const STATUS_LABELS = {
   working: 'working on it',
   waiting: 'waiting for you',
-  idle: 'paused',
-  quiet: 'done',
+  idle: 'taking a breather',
+  quiet: 'wrapped up',
   stale: 'might be stuck',
   unclean: 'something went wrong',
 };
 
 export const STATUS_COLORS = {
-  working: '#22C55E',
-  waiting: '#3B82F6',
-  idle: '#6B7280',
-  quiet: '#6B7280',
-  stale: '#F59E0B',
-  unclean: '#EF4444',
+  working: '#4ADE80',   // warm green
+  waiting: '#F5A623',   // marigold (matches brand)
+  idle: '#9C9488',      // warm gray (matches --text-secondary)
+  quiet: '#9C9488',     // warm gray
+  stale: '#FCD34D',     // warm amber
+  unclean: '#F87171',   // soft red
 };
 
 /**

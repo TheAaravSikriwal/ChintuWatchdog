@@ -10,15 +10,12 @@ const AGENT_COLORS = {
 }
 
 /**
- * GlassDome — a dark translucent circle in the bottom-right of the
- * conversation area. Shows per-session sub-agent dots when viewing a
- * specific session, or a global summary when no session is selected.
+ * GlassDome — a warm translucent glass orb in the bottom-right corner.
+ * Shows per-session sub-agent dots when viewing a specific session,
+ * or a global summary when no session is selected.
  *
- * Props:
- *   session         — the currently selected Session object (or null)
- *   sessionsRef     — React ref holding Map<sessionId, Session>
- *   sessionsVersion — number that bumps whenever sessions change
- *   onClick         — toggles the broad view
+ * Redesigned: actual glass appearance — marigold-tinted translucency,
+ * soft inner glow, frosted depth, warm ring.
  */
 export default function GlassDome({ session, sessionsRef, sessionsVersion, onClick }) {
   const [hovered, setHovered] = useState(false)
@@ -36,7 +33,6 @@ export default function GlassDome({ session, sessionsRef, sessionsVersion, onCli
       result.push({ color, status, isRoot: true })
       if (status === 'working' || status === 'waiting') active++
 
-      // Find sub-agents of this session
       for (const s of allSessions) {
         if (s.parentSessionId === session.sessionId) {
           const childStatus = computeSessionStatus(s)
@@ -49,7 +45,7 @@ export default function GlassDome({ session, sessionsRef, sessionsVersion, onCli
       // Global mode: show all active sessions as dots
       for (const s of allSessions) {
         const status = computeSessionStatus(s)
-        if (status === 'quiet') continue // skip done sessions in global
+        if (status === 'quiet') continue
         const color = AGENT_COLORS[s.agent] || '#6B7280'
         result.push({ color, status, isRoot: false })
         if (status === 'working' || status === 'waiting') active++
@@ -62,10 +58,11 @@ export default function GlassDome({ session, sessionsRef, sessionsVersion, onCli
 
   if (dots.length === 0) return null
 
-  // Position dots in a circle pattern inside the dome
   const SIZE = 56
   const CENTER = SIZE / 2
-  const DOT_RING_R = 14 // radius of the ring dots sit on
+  const DOT_RING_R = 14
+
+  const hasActive = activeCount > 0
 
   return (
     <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10 }}>
@@ -80,18 +77,56 @@ export default function GlassDome({ session, sessionsRef, sessionsVersion, onCli
           borderRadius: '50%',
           cursor: 'pointer',
           overflow: 'hidden',
-          background: 'rgba(8, 16, 30, 0.92)',
-          border: `1.5px solid ${hovered ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.1)'}`,
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.4)',
-          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           position: 'relative',
+          /* Glass effect: translucent with warm marigold tint */
+          background: hovered
+            ? 'rgba(30, 22, 12, 0.78)'
+            : 'rgba(20, 15, 8, 0.82)',
+          backdropFilter: 'blur(12px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(12px) saturate(1.4)',
+          border: `1.5px solid ${hovered
+            ? 'rgba(234, 140, 29, 0.55)'
+            : hasActive
+              ? 'rgba(234, 140, 29, 0.25)'
+              : 'rgba(255, 240, 220, 0.12)'
+          }`,
+          boxShadow: [
+            /* Inner glow — warm glass refraction */
+            'inset 0 1px 0 rgba(255, 220, 160, 0.15)',
+            'inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
+            /* Outer shadow */
+            '0 2px 12px rgba(0, 0, 0, 0.4)',
+            /* Marigold halo when active */
+            hasActive ? '0 0 20px rgba(234, 140, 29, 0.15)' : '',
+          ].filter(Boolean).join(', '),
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
         }}
       >
-        <svg width={SIZE} height={SIZE} style={{ display: 'block' }}>
-          {/* Subtle concentric ring for depth */}
+        {/* Glass highlight arc — top-left refraction */}
+        <div style={{
+          position: 'absolute',
+          top: 3,
+          left: 6,
+          width: 24,
+          height: 12,
+          borderRadius: '50%',
+          background: 'linear-gradient(180deg, rgba(255,240,220,0.18) 0%, transparent 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        <svg width={SIZE} height={SIZE} style={{ display: 'block', position: 'relative', zIndex: 1 }}>
+          {/* Subtle glass ring for depth */}
           <circle
-            cx={CENTER} cy={CENTER} r={DOT_RING_R + 4}
-            fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={0.5}
+            cx={CENTER} cy={CENTER} r={DOT_RING_R + 5}
+            fill="none"
+            stroke="rgba(234, 140, 29, 0.06)"
+            strokeWidth={0.5}
+          />
+          <circle
+            cx={CENTER} cy={CENTER} r={DOT_RING_R + 1}
+            fill="none"
+            stroke="rgba(255, 240, 220, 0.04)"
+            strokeWidth={0.5}
           />
 
           {/* Dots arranged in a circle */}
@@ -99,17 +134,14 @@ export default function GlassDome({ session, sessionsRef, sessionsVersion, onCli
             let x, y, r
 
             if (dots.length === 1) {
-              // Single session: center dot
               x = CENTER
               y = CENTER
               r = dot.isRoot ? 5 : 3.5
             } else if (dot.isRoot && dots.length > 1) {
-              // Root session in center
               x = CENTER
               y = CENTER
               r = 4.5
             } else {
-              // Arrange non-root dots around the ring
               const nonRootIndex = dots.filter((d, j) => j < i && !d.isRoot).length
               const nonRootTotal = dots.filter(d => !d.isRoot).length
               const angle = (nonRootIndex / nonRootTotal) * Math.PI * 2 - Math.PI / 2

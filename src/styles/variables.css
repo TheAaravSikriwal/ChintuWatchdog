@@ -1,81 +1,181 @@
 /* Watch Dog — Design tokens
-   Dark theme default. Light theme via data-theme="light" or prefers-color-scheme. */
+   Two themes: Marigold Dark (default), Marigold Bright (light).
+   Warm-first palette anchored on the brand marigold (#EA8C1D).
+   Token architecture adapted from gitbudmain (Chintu). */
 
 :root {
-  /* Surfaces */
-  --surface-0: #0C1221;
-  --surface-1: #111D35;
-  --surface-2: #1A2540;
-  --surface-3: #1E2D52;
+  /* ── Brand ────────────────────────────────────────────────────── */
+  --marigold: #EA8C1D;
 
-  /* Text */
-  --text-primary: #E8EAF0;
-  --text-secondary: #8B92A8;
-  --text-muted: #4A5270;
+  /* ── Surfaces (warm dark) ─────────────────────────────────────── */
+  --surface-0: #0F0D0B;
+  --surface-1: #1A1714;
+  --surface-2: #242019;
+  --surface-3: #2E2920;
 
-  /* Borders */
-  --border: rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.15);
-  --border-danger: rgba(239,68,68,0.4);
-  --border-accent: rgba(37,99,235,0.4);
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-primary: #EDE8E0;
+  --text-secondary: #9C9488;
+  --text-muted: #615A4E;
 
-  /* Accent (blue) */
-  --fill-accent: #2563EB;
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border: rgba(255, 240, 220, 0.08);
+  --border-strong: rgba(255, 240, 220, 0.16);
+  --border-danger: rgba(239, 68, 68, 0.4);
+  --border-accent: rgba(234, 140, 29, 0.35);
+
+  /* ── Accent (marigold) ────────────────────────────────────────── */
+  --fill-accent: #EA8C1D;
+  --fill-accent-hover: #F5A623;
+  --fill-accent-dim: #C97815;
   --on-accent: #ffffff;
-  --bg-accent: rgba(37,99,235,0.15);
-  --text-accent: #60A5FA;
+  --bg-accent: rgba(234, 140, 29, 0.12);
+  --text-accent: #F5A623;
 
-  /* Success */
-  --bg-success: rgba(34,197,94,0.15);
+  /* ── Semantic ─────────────────────────────────────────────────── */
+  --bg-success: rgba(34, 197, 94, 0.12);
   --text-success: #4ADE80;
-
-  /* Danger */
-  --bg-danger: rgba(239,68,68,0.15);
+  --bg-danger: rgba(239, 68, 68, 0.12);
   --text-danger: #F87171;
-
-  /* Warning */
-  --bg-warning: rgba(251,191,36,0.15);
+  --bg-warning: rgba(251, 191, 36, 0.12);
   --text-warning: #FCD34D;
+  --bg-pro: rgba(168, 120, 50, 0.15);
+  --text-pro: #D4A55A;
 
-  /* Pro (purple) */
-  --bg-pro: rgba(124,58,237,0.15);
-  --text-pro: #A78BFA;
+  /* ── Interactive ──────────────────────────────────────────────── */
+  --fill-ghost-hover: rgba(255, 240, 220, 0.05);
 
-  /* Interactive */
-  --fill-ghost-hover: rgba(255,255,255,0.05);
+  /* ── Typography ───────────────────────────────────────────────── */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
 
-  /* Layout */
-  --radius: 8px;
+  /* keep --font-sans as alias for backwards compat during migration */
+  --font-sans: var(--font-ui);
 
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+  /* ── Font sizes ───────────────────────────────────────────────── */
+  --fs-xs:  0.6875rem;   /* ~11px */
+  --fs-sm:  0.8125rem;   /* ~13px */
+  --fs-md:  0.875rem;    /* ~14px */
+  --fs-lg:  1.125rem;    /* ~18px */
+  --fs-xl:  1.375rem;    /* ~22px */
+
+  /* ── Spacing ──────────────────────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Border radius ────────────────────────────────────────────── */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl: 12px;
+  --radius: var(--radius-lg);  /* default */
+
+  /* ── Shadows ──────────────────────────────────────────────────── */
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-focus: 0 0 0 3px rgba(234, 140, 29, 0.35);
+
+  /* ── Transitions ──────────────────────────────────────────────── */
+  --transition-fast: 120ms ease-out;
+  --transition-base: 180ms ease-out;
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  --sidebar-width: 265px;
+
+  /* ── Z-index ──────────────────────────────────────────────────── */
+  --z-sticky:  10;
+  --z-overlay: 100;
+  --z-modal:   200;
+  --z-toast:   300;
 }
 
-[data-theme="light"],
+/* ── Marigold Bright (light theme) ──────────────────────────────── */
+:root[data-theme="light"] {
+  --surface-0: #FAF6F0;
+  --surface-1: #F0EBE2;
+  --surface-2: #E6E0D5;
+  --surface-3: #DCD5C9;
+
+  --text-primary: #1C1810;
+  --text-secondary: #5C5548;
+  --text-muted: #9A9285;
+
+  --border: rgba(60, 45, 20, 0.1);
+  --border-strong: rgba(60, 45, 20, 0.18);
+  --border-danger: rgba(220, 38, 38, 0.3);
+  --border-accent: rgba(201, 120, 21, 0.35);
+
+  --fill-accent: #D47B12;
+  --fill-accent-hover: #EA8C1D;
+  --fill-accent-dim: #B86A0A;
+  --on-accent: #ffffff;
+  --bg-accent: rgba(234, 140, 29, 0.1);
+  --text-accent: #B86A0A;
+
+  --bg-success: rgba(34, 197, 94, 0.1);
+  --text-success: #16A34A;
+  --bg-danger: rgba(220, 38, 38, 0.1);
+  --text-danger: #DC2626;
+  --bg-warning: rgba(217, 119, 6, 0.1);
+  --text-warning: #D97706;
+  --bg-pro: rgba(168, 120, 50, 0.1);
+  --text-pro: #96652E;
+
+  --fill-ghost-hover: rgba(60, 45, 20, 0.05);
+
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.14);
+  --shadow-focus: 0 0 0 3px rgba(201, 120, 21, 0.3);
+}
+
+/* Honor OS preference when no explicit data-theme is set */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --surface-0: #F0EAE0;
-    --surface-1: #E8E0D4;
-    --surface-2: #DEDAD0;
-    --surface-3: #D4CFC4;
-    --text-primary: #1A1A2E;
-    --text-secondary: #4A4A6A;
-    --text-muted: #8A8AA0;
-    --border: rgba(0,0,0,0.1);
-    --border-strong: rgba(0,0,0,0.18);
-    --border-danger: rgba(239,68,68,0.3);
-    --border-accent: rgba(37,99,235,0.3);
-    --bg-accent: rgba(37,99,235,0.1);
-    --text-accent: #1D4ED8;
-    --fill-ghost-hover: rgba(0,0,0,0.04);
-    --bg-success: rgba(34,197,94,0.1);
+    --surface-0: #FAF6F0;
+    --surface-1: #F0EBE2;
+    --surface-2: #E6E0D5;
+    --surface-3: #DCD5C9;
+
+    --text-primary: #1C1810;
+    --text-secondary: #5C5548;
+    --text-muted: #9A9285;
+
+    --border: rgba(60, 45, 20, 0.1);
+    --border-strong: rgba(60, 45, 20, 0.18);
+    --border-danger: rgba(220, 38, 38, 0.3);
+    --border-accent: rgba(201, 120, 21, 0.35);
+
+    --fill-accent: #D47B12;
+    --fill-accent-hover: #EA8C1D;
+    --fill-accent-dim: #B86A0A;
+    --on-accent: #ffffff;
+    --bg-accent: rgba(234, 140, 29, 0.1);
+    --text-accent: #B86A0A;
+
+    --bg-success: rgba(34, 197, 94, 0.1);
     --text-success: #16A34A;
-    --bg-danger: rgba(239,68,68,0.1);
+    --bg-danger: rgba(220, 38, 38, 0.1);
     --text-danger: #DC2626;
-    --bg-warning: rgba(251,191,36,0.1);
+    --bg-warning: rgba(217, 119, 6, 0.1);
     --text-warning: #D97706;
-    --bg-pro: rgba(124,58,237,0.1);
-    --text-pro: #7C3AED;
+    --bg-pro: rgba(168, 120, 50, 0.1);
+    --text-pro: #96652E;
+
+    --fill-ghost-hover: rgba(60, 45, 20, 0.05);
+
+    --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.14);
+    --shadow-focus: 0 0 0 3px rgba(201, 120, 21, 0.3);
   }
 }

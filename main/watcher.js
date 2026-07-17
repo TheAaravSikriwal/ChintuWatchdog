@@ -154,9 +154,9 @@ class SessionWatcher {
         adapter: claude,
         dirs: [claude.getProjectsDir()],
         discover: () => claude.discoverSessions(claude.getProjectsDir()),
-        skipFile: (basename) => !basename.endsWith('.jsonl') || basename.startsWith('agent-'),
+        skipFile: (basename) => !basename.endsWith('.jsonl'),
         makeSessionId: (fp) => path.basename(fp, '.jsonl'),
-        watchDepth: 3,   // projects/<project>/<session>.jsonl
+        watchDepth: 3,   // projects/<project>/<session>.jsonl  (also covers <project>/<uuid>/subagents/<agent>.jsonl)
       },
       {
         adapter: codex,

@@ -3,6 +3,7 @@ import { computeSessionStatus, STATUS_LABELS, STATUS_COLORS } from '../utils/ses
 import { eventPreview } from '../utils/plainEnglish'
 import { buildResultMap } from '../utils/resultPairing'
 import { useDurationTick } from '../hooks/useDurationTick'
+import { IconArrowDown } from '@tabler/icons-react'
 import InputArea from './InputArea'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
@@ -31,14 +32,14 @@ const AGENT_CODES = {
 
 const RENDER_CAP = 500
 
-// Status badge background colors (translucent)
+// Status badge background colors (translucent, marigold-warm tints)
 const STATUS_BG = {
-  working: 'rgba(34,197,94,0.15)',
-  waiting: 'rgba(59,130,246,0.15)',
-  idle: 'rgba(107,114,128,0.15)',
-  quiet: 'rgba(107,114,128,0.12)',
-  stale: 'rgba(245,158,11,0.15)',
-  unclean: 'rgba(239,68,68,0.15)',
+  working: 'var(--bg-success)',
+  waiting: 'var(--bg-accent)',
+  idle: 'var(--fill-ghost-hover)',
+  quiet: 'var(--fill-ghost-hover)',
+  stale: 'var(--bg-warning)',
+  unclean: 'var(--bg-danger)',
 }
 
 
@@ -60,6 +61,8 @@ export default function ConversationView({
   const [eventOffset, setEventOffset] = useState(0)
   const durationTick = useDurationTick()
   const [findMatches, setFindMatches] = useState({ matches: [], currentIndex: 0 })
+  const [isLockedToBottom, setIsLockedToBottom] = useState(true)
+  const [showJumpButton, setShowJumpButton] = useState(false)
 
   const handleMatchChange = useCallback(({ matches, currentIndex }) => {
     setFindMatches({ matches, currentIndex })
@@ -83,6 +86,8 @@ export default function ConversationView({
   useEffect(() => {
     if (session?.sessionId !== prevSessionIdRef.current) {
       setEventOffset(0)
+      setIsLockedToBottom(true)
+      setShowJumpButton(false)
     }
   }, [session?.sessionId])
 
@@ -106,13 +111,20 @@ export default function ConversationView({
       const saved = getScrollPosition(session.sessionId)
       if (saved !== null) {
         scrollRef.current.scrollTop = saved
+        // Check if the saved position was near the bottom
+        const el = scrollRef.current
+        const dist = el.scrollHeight - saved - el.clientHeight
+        setIsLockedToBottom(dist < 80)
+        setShowJumpButton(dist >= 80)
       } else {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        setIsLockedToBottom(true)
+        setShowJumpButton(false)
       }
     }
   }, [session, getScrollPosition])
 
-  // Auto-scroll to bottom when new events arrive, only if near bottom
+  // P0 FIX: Auto-scroll to bottom when new events arrive, but only if locked
   const prevEventCountRef = useRef(0)
   useEffect(() => {
     if (!session || !scrollRef.current) return
@@ -120,12 +132,35 @@ export default function ConversationView({
     if (newCount === prevEventCountRef.current) return
     prevEventCountRef.current = newCount
 
-    const el = scrollRef.current
-    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    if (distFromBottom < 50) {
-      el.scrollTop = el.scrollHeight
+    if (isLockedToBottom) {
+      // Use requestAnimationFrame to ensure DOM has painted the new content
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+      })
     }
-  }, [session, sessionsVersion])
+  }, [session, sessionsVersion, isLockedToBottom])
+
+  // P0 FIX: Track scroll position to detect manual scroll-up
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    const nearBottom = distFromBottom < 80
+
+    setIsLockedToBottom(nearBottom)
+    setShowJumpButton(!nearBottom)
+  }, [])
+
+  // Jump-to-bottom handler
+  const jumpToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      setIsLockedToBottom(true)
+      setShowJumpButton(false)
+    }
+  }, [])
 
   if (!session && !showAllAgents) {
     return (
@@ -214,9 +249,9 @@ export default function ConversationView({
     const isHighlighted = highlightedEventIndices.has(globalIdx)
     const isCurrent = currentMatchEventIndex === globalIdx
     const highlightStyle = isCurrent
-      ? { outline: '1.5px solid rgba(251,191,36,0.8)', borderRadius: 8, background: 'rgba(251,191,36,0.10)' }
+      ? { outline: '1.5px solid rgba(234,140,29,0.8)', borderRadius: 8, background: 'rgba(234,140,29,0.10)' }
       : isHighlighted
-      ? { outline: '1px solid rgba(251,191,36,0.35)', borderRadius: 8 }
+      ? { outline: '1px solid rgba(234,140,29,0.35)', borderRadius: 8 }
       : {}
 
     // Skip result events — handled by ActionCard
@@ -300,7 +335,7 @@ export default function ConversationView({
       />
 
       {/* Message scroll area */}
-      <div className="conversation-scroll" ref={scrollRef}>
+      <div className="conversation-scroll" ref={scrollRef} onScroll={handleScroll}>
         {hiddenCount > 0 && (
           <button className="conversation-load-earlier" onClick={loadEarlier}>
             Load earlier messages ({hiddenCount} more)
@@ -309,19 +344,29 @@ export default function ConversationView({
         {visibleEvents.map((ev, idx) => renderEvent(ev, idx))}
       </div>
 
+      {/* Jump to bottom button */}
+      {showJumpButton && (
+        <button className="jump-to-bottom" onClick={jumpToBottom}>
+          <IconArrowDown size={12} stroke={2} />
+          Jump to latest
+        </button>
+      )}
+
       {/* Input area */}
       <InputArea session={session} />
 
-      {/* Glass dome minimap */}
+      {/* Glass dome minimap — P0 FIX: pass session prop */}
       <GlassDome
+        session={session}
         sessionsRef={sessionsRef}
         sessionsVersion={sessionsVersion}
         onClick={() => onToggleBroadView(true)}
       />
 
-      {/* Broad view overlay */}
+      {/* Broad view overlay — P0 FIX: pass session prop */}
       {showBroadView && (
         <BroadView
+          session={session}
           sessionsRef={sessionsRef}
           sessionsVersion={sessionsVersion}
           onClose={() => onToggleBroadView(false)}

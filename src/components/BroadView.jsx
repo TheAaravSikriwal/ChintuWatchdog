@@ -6,13 +6,6 @@ import StatusPills from './StatusPills'
 /**
  * BroadView — per-session overlay showing this session and its sub-agents.
  * Opens when clicking the glass dome on a conversation.
- *
- * Props:
- *   session         — the currently viewed Session object
- *   sessionsRef     — React ref holding Map<sessionId, Session>
- *   sessionsVersion — number that bumps whenever sessions change
- *   onClose         — dismiss the overlay
- *   onSelectSession — navigate to a different session
  */
 export default function BroadView({ session, sessionsRef, sessionsVersion, onClose, onSelectSession }) {
   // Build the session tree: this session + its sub-agents (and their sub-agents)
@@ -65,6 +58,9 @@ export default function BroadView({ session, sessionsRef, sessionsVersion, onClo
   if (!session) return null
 
   const subAgentCount = treeSessions.length - 1
+  const statusDotColor = status === 'working' ? 'var(--text-success)'
+    : status === 'waiting' ? 'var(--fill-accent)'
+    : 'var(--text-muted)'
 
   return (
     <div className="broad-view">
@@ -85,41 +81,40 @@ export default function BroadView({ session, sessionsRef, sessionsVersion, onClo
         .broad-view-header {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 13px 18px;
+          gap: var(--space-3);
+          padding: var(--space-3) var(--space-5);
           border-bottom: 0.5px solid var(--border);
           background: var(--surface-1);
           flex-shrink: 0;
         }
         .broad-view-header-text { flex: 1; min-width: 0; }
         .broad-view-title {
-          font-size: 14px; font-weight: 500; color: var(--text-primary);
+          font-size: var(--fs-md); font-weight: 500; color: var(--text-primary);
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .broad-view-subtitle {
-          font-size: 11px; color: var(--text-muted); margin-top: 2px;
+          font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px;
         }
         .broad-view-status {
           display: inline-flex; align-items: center; gap: 5px;
-          font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+          font-size: var(--fs-xs); color: var(--text-muted); flex-shrink: 0;
         }
         .broad-view-status-dot {
           width: 6px; height: 6px; border-radius: 50%;
         }
         .broad-view-close {
           background: none; border: none; cursor: pointer;
-          color: var(--text-muted); padding: 4px; border-radius: 6px;
+          color: var(--text-muted); padding: var(--space-1); border-radius: var(--radius-md);
           display: flex; align-items: center; justify-content: center;
-          transition: background 0.12s, color 0.12s; flex-shrink: 0;
+          transition: background var(--transition-fast), color var(--transition-fast); flex-shrink: 0;
         }
         .broad-view-close:hover {
           background: var(--fill-ghost-hover); color: var(--text-primary);
         }
         .broad-view-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-
         .broad-view-solo {
           flex: 1; display: flex; align-items: center; justify-content: center;
-          color: var(--text-muted); font-size: 13px;
+          color: var(--text-muted); font-size: var(--fs-sm);
         }
       `}</style>
 
@@ -136,9 +131,7 @@ export default function BroadView({ session, sessionsRef, sessionsVersion, onClo
         </div>
 
         <div className="broad-view-status">
-          <div className="broad-view-status-dot" style={{
-            background: status === 'working' ? '#22C55E' : status === 'waiting' ? '#3B82F6' : '#6B7280'
-          }} />
+          <div className="broad-view-status-dot" style={{ background: statusDotColor }} />
           {STATUS_LABELS[status]}
         </div>
 
