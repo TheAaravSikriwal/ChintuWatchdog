@@ -1,33 +1,8 @@
 import { useState } from 'react'
-import {
-  IconFileText,
-  IconFilePencil,
-  IconEdit,
-  IconTerminal,
-  IconSearch,
-  IconSubtask,
-  IconBolt,
-  IconCheck,
-  IconAlertTriangle,
-  IconMinus,
-} from '@tabler/icons-react'
-import { actionLabel, quantitativeContext } from '../utils/plainEnglish'
+import { IconChevronRight } from '@tabler/icons-react'
+import { narrateAction, quantitativeContext } from '../utils/plainEnglish'
 import { resultHasError } from '../utils/resultPairing'
-
-// ── Icon config — warm marigold-aligned palette ─────────────────────────────
-
-const ACTION_ICON_CONFIG = {
-  read_file:   { bg: 'rgba(234,140,29,0.12)', color: 'var(--fill-accent)', Icon: IconFileText },
-  write_file:  { bg: 'rgba(34,197,94,0.10)',  color: 'var(--text-success)', Icon: IconFilePencil },
-  edit_file:   { bg: 'rgba(34,197,94,0.10)',  color: 'var(--text-success)', Icon: IconEdit },
-  run_command: { bg: 'rgba(234,140,29,0.12)', color: 'var(--fill-accent)', Icon: IconTerminal },
-  search:      { bg: null,                    color: null,                  Icon: IconSearch },
-  task:        { bg: null,                    color: null,                  Icon: IconSubtask },
-}
-
-function getIconConfig(action) {
-  return ACTION_ICON_CONFIG[action] || { bg: null, color: null, Icon: IconBolt }
-}
+import { classifyAction } from '../utils/actionClassify'
 
 // ── Duration formatting ──────────────────────────────────────────────────────
 
@@ -44,126 +19,107 @@ function formatRunningDuration(seconds) {
   if (seconds >= 60) {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
-    return `${m}m ${s}s+`
+    return `${m}m ${s}s`
   }
-  return `${seconds.toFixed(0)}s+`
+  return `${seconds.toFixed(0)}s`
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Action message ───────────────────────────────────────────────────────────
+// Every action is narrated in plain English "from the agent". The technical
+// detail (command, path, tool, raw output) is always one click away.
 
-export default function ActionCard({ event, resultEvent, agentColor, durationTick }) {
+export default function ActionCard({
+  event, resultEvent, durationTick,
+  subagentLinks, sessionsRef, onSelectSession,
+}) {
   const [expanded, setExpanded] = useState(false)
 
-  const { verb, object } = actionLabel(event.action, event.target, event.rawTool, !!resultEvent)
-  const labelText = verb ? `${verb} ${object}`.trim() : object
+  const completed = !!resultEvent
+  const { kind, targetId } = classifyAction(event, subagentLinks, sessionsRef)
+  const { line, tag } = narrateAction(event, kind, completed)
 
-  const { bg: iconBg, color: iconColor, Icon } = getIconConfig(event.action)
-  const resolvedIconBg    = iconBg    || 'var(--surface-2)'
-  const resolvedIconColor = iconColor || 'var(--text-secondary)'
-
-  // Duration
-  let durationEl = null
+  // Duration (only when we have timestamps)
+  let durationText = null
+  let running = false
   if (event.timestamp) {
     if (resultEvent && resultEvent.timestamp) {
-      const secs = (new Date(resultEvent.timestamp) - new Date(event.timestamp)) / 1000
-      durationEl = (
-        <span className="action-duration">· {formatDuration(secs)}</span>
-      )
+      durationText = formatDuration((new Date(resultEvent.timestamp) - new Date(event.timestamp)) / 1000)
     } else if (!resultEvent) {
-      // Still running — durationTick drives re-renders
-      void durationTick
-      const secs = (Date.now() - new Date(event.timestamp).getTime()) / 1000
-      durationEl = (
-        <span className="action-duration action-duration-running">
-          · running {formatRunningDuration(secs)}
-        </span>
-      )
+      void durationTick // re-render tick
+      running = true
+      durationText = formatRunningDuration((Date.now() - new Date(event.timestamp).getTime()) / 1000)
     }
   }
 
-  // Quantitative context
-  const qctx = quantitativeContext(event.action, resultEvent?.result)
-  const qctxEl = qctx ? (
-    <span className="action-qctx">· {qctx}</span>
-  ) : null
+  const resultText = resultEvent?.result || ''
+  const hasError = completed && resultHasError(resultText)
+  const qctx = quantitativeContext(event.action, resultText)
 
-  // Result pill
-  let pillEl = null
-  if (resultEvent) {
-    const text = resultEvent.result || ''
-    const hasError = resultHasError(text)
-    const isEmpty = !text.trim()
+  // Status suffix — plain words, not a heavy pill.
+  let status = null
+  if (running) status = <span className="msg-status msg-status-run">· working{durationText ? ` ${durationText}` : ''}…</span>
+  else if (hasError) status = <span className="msg-status msg-status-err">· ran into a problem</span>
+  else if (completed && qctx) status = <span className="msg-status">· {qctx}</span>
+  else if (completed && durationText) status = <span className="msg-status">· {durationText}</span>
 
-    if (hasError) {
-      pillEl = (
-        <div className="action-pill action-pill-error">
-          <IconAlertTriangle size={12} />
-          <span>ran into a problem · expand to see</span>
-        </div>
-      )
-    } else if (isEmpty) {
-      pillEl = (
-        <div className="action-pill action-pill-muted">
-          <IconMinus size={12} />
-          <span>no output</span>
-        </div>
-      )
-    } else {
-      const charCount = text.length
-      pillEl = (
-        <div className="action-pill action-pill-ok">
-          <IconCheck size={12} />
-          <span>{charCount > 0 ? `${charCount} chars` : 'done'}</span>
-        </div>
-      )
-    }
-  }
+  const canOpenHelper = kind === 'delegation' && targetId
+  const hasDetail = !!(event.target || resultText || event.rawTool)
 
-  function handleToggle(e) {
-    e.stopPropagation()
-    if (resultEvent) setExpanded(prev => !prev)
+  function toggle() {
+    if (hasDetail) setExpanded(v => !v)
   }
 
   return (
-    <div className="action-card-wrapper">
-      <div
-        className={`action-card${resultEvent ? ' action-card-clickable' : ''}`}
-        onClick={handleToggle}
-      >
-        {/* Icon square */}
-        <div
-          className="action-icon-square"
-          style={{ background: resolvedIconBg }}
-        >
-          <Icon size={15} color={resolvedIconColor} />
-        </div>
-
-        {/* Middle: label + target */}
-        <div className="action-card-body">
-          <div className="action-card-top">
-            <span className="action-label">{labelText}</span>
-            <span className="action-card-meta">
-              {durationEl}
-              {qctxEl}
-            </span>
-          </div>
-          {event.target && (
-            <div className="action-target">{event.target}</div>
-          )}
-        </div>
+    <div className={`msg-action msg-action-${kind}`}>
+      <div className={`msg-action-line${hasDetail ? ' clickable' : ''}`} onClick={toggle}>
+        {hasDetail && (
+          <IconChevronRight
+            size={13} stroke={2}
+            className={`msg-action-caret${expanded ? ' open' : ''}`}
+          />
+        )}
+        <span className="msg-action-text">{line}</span>
+        {tag && <span className={`msg-tag msg-tag-${tag}`}>{tag}</span>}
+        {status}
       </div>
 
-      {/* Result pill */}
-      {pillEl && (
-        <div className="action-pill-row" onClick={handleToggle}>
-          {pillEl}
-        </div>
+      {canOpenHelper && (
+        <button
+          className="msg-open-helper"
+          onClick={(e) => { e.stopPropagation(); onSelectSession && onSelectSession(targetId) }}
+        >
+          open the helper's thread →
+        </button>
       )}
 
-      {/* Expanded result */}
-      {expanded && resultEvent?.result && (
-        <div className="action-result-expanded">
-          {resultEvent.result}
+      {expanded && hasDetail && (
+        <div className="msg-detail">
+          {event.rawTool && (
+            <div className="msg-detail-row">
+              <span className="msg-detail-key">tool</span>
+              <span className="msg-detail-val mono">{event.rawTool}</span>
+            </div>
+          )}
+          {event.target && (
+            <div className="msg-detail-row">
+              <span className="msg-detail-key">{event.action === 'run_command' ? 'command' : 'target'}</span>
+              <span className="msg-detail-val mono">{event.target}</span>
+            </div>
+          )}
+          {durationText && (
+            <div className="msg-detail-row">
+              <span className="msg-detail-key">time</span>
+              <span className="msg-detail-val">{running ? `running ${durationText}` : durationText}</span>
+            </div>
+          )}
+          {completed && (
+            <div className="msg-detail-row msg-detail-output">
+              <span className="msg-detail-key">output</span>
+              <pre className={`msg-detail-pre${hasError ? ' err' : ''}`}>
+                {resultText.trim() ? resultText : '(no output)'}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>

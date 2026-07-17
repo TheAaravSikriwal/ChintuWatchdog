@@ -304,143 +304,153 @@
   line-height: 1.55;
 }
 
-/* ── Action card — clean, calm ───────────────────────────────── */
-.action-card-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.action-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  transition: background var(--transition-fast);
-}
-
-.action-card.action-card-clickable {
-  cursor: pointer;
-}
-
-.action-card.action-card-clickable:hover {
-  background: var(--surface-2);
-}
-
-.action-icon-square {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.action-card-body {
+/* ── Action as a plain-English message ───────────────────────── */
+.msg-action {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-width: 0;
+  padding: 2px 0;
 }
 
-.action-card-top {
+.msg-action-line {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.action-label {
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.action-card-meta {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-1);
-  margin-left: auto;
+  padding: 3px var(--space-2) 3px 0;
+  border-radius: var(--radius-md);
 }
 
-.action-duration {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.action-duration-running {
-  color: var(--text-warning);
-}
-
-.action-qctx {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.action-target {
-  font-size: var(--fs-sm);
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Action result pill ──────────────────────────────────────── */
-.action-pill-row {
-  padding: 0 var(--space-3) var(--space-1);
+.msg-action-line.clickable {
   cursor: pointer;
 }
 
-.action-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 2px 8px;
+.msg-action-line.clickable:hover {
+  background: var(--fill-ghost-hover);
+}
+
+.msg-action-caret {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transform: translateY(2px);
+  transition: transform var(--transition-fast);
+}
+
+.msg-action-caret.open {
+  transform: translateY(2px) rotate(90deg);
+}
+
+.msg-action-text {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Delegations read a touch more prominently — a helper is a real actor. */
+.msg-action-delegation .msg-action-text {
+  color: var(--text-primary);
+}
+
+.msg-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: var(--fs-xs);
+  flex-shrink: 0;
+  transform: translateY(-1px);
 }
 
-.action-pill-ok {
-  background: var(--bg-success);
-  color: var(--text-success);
-}
-
-.action-pill-error {
-  background: var(--bg-warning);
-  color: var(--text-warning);
-}
-
-.action-pill-muted {
+.msg-tag-background {
   background: var(--surface-2);
   color: var(--text-muted);
 }
 
-/* ── Expanded result block ───────────────────────────────────── */
-.action-result-expanded {
+.msg-tag-helper {
+  background: var(--bg-pro);
+  color: var(--text-pro);
+}
+
+.msg-status {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.msg-status-run { color: var(--text-warning); }
+.msg-status-err { color: var(--text-danger); }
+
+.msg-open-helper {
+  align-self: flex-start;
+  margin-left: 18px;
+  background: transparent;
+  border: none;
+  padding: 0 0 2px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--text-pro);
+  cursor: pointer;
+}
+
+.msg-open-helper:hover { text-decoration: underline; }
+
+/* ── Detail on demand — the "glass into everything" ──────────── */
+.msg-detail {
+  margin: 2px 0 4px 18px;
+  border-left: 2px solid var(--border-strong);
+  padding-left: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.msg-detail-row {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+.msg-detail-key {
+  flex-shrink: 0;
+  width: 60px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 9px;
+  padding-top: 2px;
+}
+
+.msg-detail-val {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.msg-detail-val.mono {
+  font-family: var(--font-mono);
+}
+
+.msg-detail-output {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.msg-detail-pre {
+  margin: 0;
   background: var(--surface-2);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   padding: var(--space-2) var(--space-3);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  max-height: 200px;
-  overflow-y: auto;
+  border-radius: var(--radius-md);
+  max-height: 240px;
+  overflow: auto;
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
   color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-top: none;
   user-select: text;
+}
+
+.msg-detail-pre.err {
+  color: var(--text-danger);
 }
 
 /* ── All-agents interleaved view ─────────────────────────────── */
@@ -537,19 +547,3 @@
 }
 
 /* ── Delegation badge ────────────────────────────────────────── */
-.delegation-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 3px var(--space-2);
-  border-radius: 999px;
-  background: var(--bg-pro);
-  color: var(--text-pro);
-  font-size: 10px;
-  cursor: pointer;
-  transition: opacity var(--transition-fast);
-}
-
-.delegation-badge:hover {
-  opacity: 0.8;
-}

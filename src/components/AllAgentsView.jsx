@@ -6,7 +6,6 @@ import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
 import { dayKey, dayLabel, todayKey, getActivityDays } from '../utils/dayGrouping'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
-import DelegationBadge from './DelegationBadge'
 
 const RENDER_CAP = 500
 
@@ -191,17 +190,6 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
           <MessageBubble event={ev} agentColor={agentColor} />
         </div>
       )
-    } else if (ev.kind === 'action' && ev.action === 'task') {
-      eventNode = (
-        <div key={key}>
-          <DelegationBadge
-            event={ev}
-            onSelectSession={onSelectSession}
-            subagentLinks={session.subagentLinks}
-            sessionsRef={sessionsRef}
-          />
-        </div>
-      )
     } else if (ev.kind === 'action') {
       eventNode = (
         <div key={key}>
@@ -210,6 +198,9 @@ export default function AllAgentsView({ sessionsRef, sessionsVersion, onSelectSe
             resultEvent={resultMap.get(`${session.sessionId}:${ev.sourceSeq}`) || null}
             agentColor={agentColor}
             durationTick={durationTick}
+            subagentLinks={session.subagentLinks}
+            sessionsRef={sessionsRef}
+            onSelectSession={onSelectSession}
           />
         </div>
       )

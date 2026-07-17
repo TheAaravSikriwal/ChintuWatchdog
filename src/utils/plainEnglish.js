@@ -146,6 +146,54 @@ export function actionLabel(action, target, rawTool, completed) {
 }
 
 /**
+ * Turn an action into a plain-English one-liner "from the agent", aware of
+ * whether it was done directly (foreground), kicked off in the background, or
+ * handed to a sub-agent. Returns { line, tag } where tag is a short chip label
+ * ('background' | 'helper') or null.
+ *
+ * @param {object} event    - kind==='action' WatchdogEvent
+ * @param {'foreground'|'background'|'delegation'} category
+ * @param {boolean} completed
+ */
+export function narrateAction(event, category, completed) {
+  const { action, target, rawTool } = event;
+
+  if (category === 'delegation') {
+    const what = target && !/^toolu_/i.test(target) ? target : null;
+    if (completed) {
+      return { line: what ? `A helper finished: ${what}` : 'A helper finished its task', tag: 'helper' };
+    }
+    return { line: what ? `Asked a helper to ${lowerFirst(what)}` : 'Handed a task to a helper', tag: 'helper' };
+  }
+
+  if (category === 'background') {
+    const subject = commandSubject(target);
+    return {
+      line: completed
+        ? `Finished ${subject} (ran in the background)`
+        : `Started ${subject} in the background`,
+      tag: 'background',
+    };
+  }
+
+  // Foreground — the agent's own direct work.
+  const { verb, object } = actionLabel(action, target, rawTool, completed);
+  return { line: verb ? `${verb} ${object}`.trim() : object, tag: null };
+}
+
+function lowerFirst(s) {
+  return s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+}
+
+/** A short, friendly subject for a command, without tense framing. */
+function commandSubject(target) {
+  if (!target) return 'a command';
+  const { present } = friendlyCommandLabel(target);
+  if (present.startsWith('Running: ')) return present.slice('Running: '.length);
+  return lowerFirst(present);
+}
+
+/**
  * Return a short string suitable for the session sidebar preview.
  */
 export function eventPreview(event) {

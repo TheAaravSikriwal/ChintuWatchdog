@@ -304,7 +304,14 @@ function parseLine(line, sessionId, seq) {
         const rawName = typeof block.name === 'string' ? block.name : 'unknown'
         const input = block.input && typeof block.input === 'object'
           ? block.input : {}
-        const { action, target } = normalizeToolCall(rawName, input)
+        let { action, target } = normalizeToolCall(rawName, input)
+        // Delegation (Agent/Task): describe WHAT was handed off. The Agent tool
+        // carries the human intent in `description` (or `prompt`), not in any of
+        // the path/command fields normalizeToolCall looks at.
+        if (action === 'task' && !target) {
+          if (typeof input.description === 'string') target = input.description
+          else if (typeof input.prompt === 'string') target = input.prompt.slice(0, 80)
+        }
         const toolUseId = typeof block.id === 'string' ? block.id : undefined
 
         events.push({

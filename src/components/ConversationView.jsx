@@ -8,7 +8,6 @@ import { IconArrowDown } from '@tabler/icons-react'
 import InputArea from './InputArea'
 import MessageBubble from './MessageBubble'
 import ActionCard from './ActionCard'
-import DelegationBadge from './DelegationBadge'
 import FindBar from './FindBar'
 import AllAgentsView from './AllAgentsView'
 import GlassDome from './GlassDome'
@@ -258,21 +257,8 @@ export default function ConversationView({
       )
     }
 
-    // Delegation badge for task actions
-    if (ev.kind === 'action' && ev.action === 'task') {
-      return (
-        <div key={key} style={highlightStyle}>
-          <DelegationBadge
-            event={ev}
-            onSelectSession={onSelectSession}
-            subagentLinks={session.subagentLinks}
-            sessionsRef={sessionsRef}
-          />
-        </div>
-      )
-    }
-
-    // Regular action card
+    // Every action — foreground, background, or delegation — narrated as one
+    // plain-English message with detail on demand.
     if (ev.kind === 'action') {
       return (
         <div key={key} style={highlightStyle}>
@@ -281,6 +267,9 @@ export default function ConversationView({
             resultEvent={resultMap.get(ev.sourceSeq) || null}
             agentColor={agentColor}
             durationTick={durationTick}
+            subagentLinks={session.subagentLinks}
+            sessionsRef={sessionsRef}
+            onSelectSession={onSelectSession}
           />
         </div>
       )
