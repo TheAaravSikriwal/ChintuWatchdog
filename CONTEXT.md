@@ -1,355 +1,257 @@
-# Watch Dog — Project Context
+# Watch Dog — Project Context & Handoff
 
-Complete handoff for a new collaborator. Zero other context needed.
+Complete handoff for continuing/planning work. Written 2026-07-17. Supersedes
+the earlier pre-UI handoff.
 
 ---
 
-## 1. What this is and why it exists
+## 1. What this is (and the product vision)
 
-Watch Dog is a desktop app that lets a non-technical person supervise AI coding agents. It watches agents' local session files, parses them mechanically, and shows what the agent is doing in a calm, structural display — role, action, target, the agent's own words.
+**Watch Dog** is a desktop app that lets a **non-technical person supervise AI
+coding agents** (Claude Code, Codex, Cursor, Aider, Antigravity). It watches the
+agents' local session log files, parses them mechanically, and shows what each
+agent is doing.
 
-**Who it's for:** People who are blocked from agentic coding not because tools are missing, but because tools are opaque and assume you speak engineer. The same audience as Chintu (its sibling product — Git without the terminal, at wearechintu.com).
+**The vision, in one line:** *a calm window into everything an agent is doing,
+shown as simple plain-English text messages — like the agent is texting you
+updates — with the real technical detail always one tap away.*
 
-**The core idea:** Every file-based coding agent (Claude Code, Codex, Cursor, Aider) writes local session logs. Those logs contain both the agent's reasoning ("the voice") and the actions it takes ("the hands"). Watch Dog reads those logs, normalizes them into one unified Event format, and renders them in one window — regardless of which agent produced them.
+Concretely, three kinds of activity are all narrated as chat messages:
+- **The agent's own work** — "Looked at App.jsx", "Ran the tests", "Updated config.json"
+- **Background tasks** — async commands the *same* agent kicked off ("Started the dev server in the background"). NOT a separate agent.
+- **Sub-agents** — jobs the agent delegates via the Agent/Task tool ("A helper finished: Review the frontend"). These get their own thread.
 
-**The values line (non-negotiable):**
-- No API, no LLM, no model, no subscription, no server — ever. Parsing and display are purely mechanical.
+"Glass into everything": every message is plain English on the surface, but
+tapping it reveals the raw detail (tool name, full command/path, timing, output).
+
+**Values (non-negotiable):**
+- No API, no LLM, no model, no subscription, no server, no network, no database. Parsing + display are purely mechanical.
 - Read-only. Never writes to agent session files.
-- No network, no database. Watch -> parse -> hold events in memory -> render.
-- This is a *value*, not a scoping decision. It's downstream of the Chintu ethos: no extraction from users.
+- Downstream of the Chintu ethos (wearechintu.com — Git without the terminal): no extraction from users.
 
-**Watch Dog and Chintu are separate apps.** Watch Dog does NOT do version control. They may eventually dock visually (cosmetic only, no communication between them), but each works fully standalone.
+**Sibling product:** Chintu (separate app; may dock visually someday, no comms between them).
 
 ---
 
-## 2. Architecture overview
+## 2. Current status (2026-07-17)
+
+Watch Dog is a **working Electron app**. On the dev machine it loads **~22 real
+Claude Code sessions (~5,000+ events)** with no errors. The UI is a chat-style
+supervision surface.
+
+**Recent redesign direction (this is the active thread):** the feed is being
+turned into an **iMessage-style chat** where *every* action is a plain-English
+bubble with detail-on-demand. This is largely built but there's a clear runway
+of polish/decisions left (see §7).
+
+All recent work lives on branch **`fix/result-pairing-and-agent-identity`**
+(6 commits, **not pushed**, branched off `main` @ `5b42611`).
+
+---
+
+## 3. Architecture
 
 ```
-[Agent session files on disk]
-        |
-        | chokidar file watching (main process)
+[Agent session files on disk]  (~/.claude/projects, ~/.codex/sessions, …)
+        |  chokidar file watching (main process)
         v
 [Per-tool adapters]  --->  [Normalized WatchdogEvent stream]
-  main/adapters/              main/event.js defines the shape
-  claude.js                   Adapters emit Events; nothing else touches raw formats
-  codex.js
-  (cursor.js, aider.js - not yet built)
-        |
-        | IPC bridge (electron.js -> preload.js)
+  main/adapters/*.js          main/event.js defines the shape
+        |  main/session-parse.js (shared parse + dedup + metadata)
         v
-[Renderer / Display]
-  src/App.jsx
-  src/components/EventFeed.jsx
-  Two-panel layout: left = all events, right = file-touching actions only
+[watcher.js]  --IPC-->  [preload.js]  -->  [React renderer]
+                                            src/ (App, hooks, components)
 ```
 
-**Data flow in detail:**
+**The IPC boundary enforces the abstraction:** the renderer only ever sees the
+normalized `WatchdogEvent` shape, never raw agent formats.
 
-1. **chokidar** watches agent session directories (e.g. `~/.claude/projects/`)
-2. On file change, **`main/watcher.js`** reads new bytes from the changed file (offset tracking — only new data)
-3. New bytes are split into lines. Partial last lines are held back (the file may still be mid-write)
-4. Each complete line is passed to the appropriate **adapter** (`main/adapters/claude.js` or `codex.js`)
-5. The adapter emits zero or more **`WatchdogEvent`** objects per line
-6. Events are batched (300ms coalescing delay, 8192-path overflow -> full rescan) and sent via IPC
-7. **`preload.js`** bridges main<->renderer with `contextIsolation: true`
-8. **`src/App.jsx`** accumulates events in state, passes them to `EventFeed`
-9. **`EventFeed.jsx`** renders two panels, reading ONLY the normalized Event shape
+### Main process (`main/` + root)
 
-**The IPC boundary is the abstraction enforcement.** The renderer never sees raw formats. If `EventFeed.jsx` ever needs to check `event.agent` to render correctly, the format is wrong.
+| File | Purpose |
+|---|---|
+| `electron.js` | BrowserWindow + IPC. `watchdog:get-initial-events` returns `{ events, sessionMeta }`; live channel sends `{ events, sessionMeta }`. Uses `session-parse.js`. |
+| `preload.js` | Context-isolated bridge (`window.watchdog`). **Checksum-gated — keep byte-stable.** |
+| `main/event.js` | `WatchdogEvent` typedef, `normalizeToolCall`, `truncateResult`, `isFileTouching`, `compareEvents`. **Checksum-gated.** |
+| `main/tool-map.js` | raw tool name → normalized action. Grows per adapter (not gated). |
+| `main/session-parse.js` | **Shared** `processLines()` + metadata accumulator. Used by BOTH `watcher.js` (live) and `electron.js` (initial load) — single source of the parse/dedup/metadata logic. |
+| `main/watcher.js` | `SessionWatcher`: chokidar over all 5 agent dirs, coalesced batches, 8192-overflow→fullSync, per-file byte offset + partial-line holdback, periodic rescan for late-appearing agents. Threads `sessionMeta` up through `onEvents`. |
+| `main/adapters/claude.js` | Claude Code. **Done, tested against real data.** Discovers sessions + sub-agent files; parses content polymorphism, thinking blocks, system-message skips, `/rename`, `/resume` continuation, and sub-agent linking (see §5). |
+| `main/adapters/{codex,cursor,aider,antigravity}.js` | Written + wired into the watcher, with fixture test scripts, but **NOT verified against real installs** (only Claude is installed on the dev machine). |
+
+### Renderer (`src/`)
+
+| File | Purpose |
+|---|---|
+| `App.jsx` | Top-level state: `activeSessionId`, `showAllAgents`, `allAgentsDay`, `showNewSession`, `showBroadView`, search, find bar. Keyboard shortcuts. |
+| `hooks/useSessions.js` | The session store: `Map<sessionId, Session>`, `ingestEvents` (idempotent via per-session `seenSeqs`), grouping by active/day, naming, live metadata application. |
+| `hooks/useSessionScroll.js`, `hooks/useDurationTick.js` | Per-session scroll memory; 1s tick for running durations. |
+| `components/Sidebar.jsx` | Header, search, **All-Agents day list** (Today/Yesterday/…), session sections (Active grouped by agent; historical by date), footer. |
+| `components/ConversationView.jsx` | Single-session thread: header, session dividers, message scroll, find bar, input area. Hosts the dome + broad view + All-Agents view. |
+| `components/AllAgentsView.jsx` | **Per-day** interleaved feed across all sessions, with a day navigator (prev/next, "live" badge). |
+| `components/ActionCard.jsx` | **An action rendered as a plain-English iMessage bubble** with a background/helper tag, running/done status, and an expandable detail drawer (tool/command/timing/output). Handles foreground, background, and delegation. |
+| `components/MessageBubble.jsx` | Message (agent/user), thinking, and session-divider bubbles. iMessage radii. |
+| `components/GlassDome.jsx`, `BroadView.jsx`, `NetworkGraph.jsx`, `StatusPills.jsx` | The corner "dome" + mission-control overlay showing a session and its sub-agents (built from `parentSessionId`). |
+| `components/{InputArea,FindBar,NewSessionView}.jsx` | Phase-1 input (copy CLI command), Cmd+F search, new-session helper. |
+| `utils/plainEnglish.js` | `actionLabel`, **`narrateAction`** (foreground/background/delegation → line + tag), command friendly-naming, quantitative context. |
+| `utils/actionClassify.js` | `classifyAction(event, subagentLinks, sessionsRef)` → `foreground | background | delegation`. |
+| `utils/agentIdentity.js` | **Single source** of `AGENT_COLORS` / `AGENT_CODES` (theme-independent). |
+| `utils/dayGrouping.js` | Day keys/labels + `getActivityDays()` for the All-Agents day list. |
+| `utils/{sessionName,sessionStatus,resultPairing,minimapLayout,networkLayout}.js` | Naming, 6-state status, action↔result pairing, dome/graph layout. |
 
 ---
 
-## 3. File map
+## 4. Event format (the stable contract)
 
-### Root
-
-| File | Purpose |
-|---|---|
-| `electron.js` | Electron main process entry. Creates `BrowserWindow`, starts `SessionWatcher`, bridges events via IPC (`watchdog:events`, `watchdog:get-initial-events`, `watchdog:get-projects-dir`). |
-| `preload.js` | Context-isolated bridge. Exposes `window.watchdog` with `getInitialEvents()`, `getProjectsDir()`, `onEvents(callback)`. |
-| `index.html` | Vite entry point with CSP headers. Loads `src/main.jsx`. |
-| `package.json` | Electron + Vite + React. Dev port 5174. Matches Chintu's stack exactly. |
-| `vite.config.js` | `@vitejs/plugin-react`, `base: './'`, port 5174, strict port. Matches Chintu's config. |
-| `scripts/dev-electron.cjs` | Dev launcher. Spawns Electron with `NODE_ENV=development` after Vite is ready. |
-
-### `main/` — Main process (Node.js, adapters, watcher)
-
-| File | Purpose |
-|---|---|
-| `main/event.js` | **THE load-bearing file.** Defines `WatchdogEvent` typedef (JSDoc), `TOOL_ACTION_MAP` normalization table, `normalizeToolCall()`, `truncateResult()`, `isFileTouching()`, `compareEvents()` merge comparator. Every adapter imports from here. Display reads only this shape. |
-| `main/watcher.js` | `SessionWatcher` class. chokidar-based file watching with `PendingBatch` (8192-entry limit, overflow -> `fullSync`), `FileState` (per-file byte offset + sequence counter + partial-line holdback). Currently only watches Claude's `projectsDir`. |
-| `main/adapters/claude.js` | Claude Code adapter. Discovers sessions under `~/.claude/projects/` (env overrides: `CLAUDE_PROJECTS_DIR`, `CLAUDE_CONFIG_DIR`). `parseLine()` handles content polymorphism (bare string for user, array for assistant), all block types (text, thinking, tool_use, tool_result), system message detection, truncation detection. **Tested: 91 sessions, 22,025 events.** |
-| `main/adapters/codex.js` | Codex adapter. Discovers sessions under `~/.codex/sessions/` and `~/.codex/archived_sessions/` (env: `CODEX_SESSIONS_DIR`). Handles `session_meta` -> `session_start`, `response_item` with role -> messages, `function_call`/`custom_tool_call` -> actions, `function_call_output`/`custom_tool_call_output` -> results. Handles `arguments` polymorphism (JSON-encoded string OR native object). **Written but NOT yet tested against fixtures.** |
-
-### `src/` — Renderer (React)
-
-| File | Purpose |
-|---|---|
-| `src/main.jsx` | React entry. Mounts `<App />` into `#root`. Loads Inter + JetBrains Mono fonts. |
-| `src/App.jsx` | Top-level component. Loads initial events on mount via `window.watchdog.getInitialEvents()`, subscribes to live events via `window.watchdog.onEvents()`. Passes accumulated events to `EventFeed`. |
-| `src/App.css` | Dark theme CSS variables (`--bg: #0f1117`, etc.), app layout, header, loading state. |
-| `src/components/EventFeed.jsx` | Two-panel display. Left: "Process Feed" (all events, rendered by kind — message, thinking, action, result, session_start). Right: "File Actions" (filtered to `read_file`/`write_file`/`edit_file`). Has its own `isFileTouching()` (renderer can't import from main). Auto-scrolls to bottom on new events. |
-| `src/components/EventFeed.css` | Event row styling. Kind-specific left borders (amber for action, dim for result, purple for thinking). Role badges (U/A/S with color). Two-panel grid layout. |
-
----
-
-## 4. Event format spec
-
-Defined in `main/event.js`. This is the normalized shape every adapter emits. Display reads ONLY this. The raw line shape is NEVER typed.
+`main/event.js`. Display reads ONLY this shape.
 
 ```
 WatchdogEvent {
-  agent:      'claude-code' | 'codex' | 'cursor' | 'aider'
+  agent:      'claude-code'|'codex'|'cursor'|'aider'|'antigravity'
   sessionId:  string
-  timestamp:  string | null        (ISO 8601; null when source has none, e.g. Aider)
-  sourceSeq:  number               (monotonic per emitted event, scoped per session file;
-                                    resets to 0 for each file; one raw line may emit
-                                    several — e.g. thinking+text+tool_use -> seq 42, 43, 44)
-  role:       'user' | 'assistant' | 'system'
-  kind:       'session_start' | 'message' | 'thinking' | 'action' | 'result'
-
-  // kind=message or kind=thinking:
-  text?:      string
-
-  // kind=action:
-  action?:    'read_file' | 'write_file' | 'edit_file' | 'run_command' | 'search' | 'task' | 'other'
-  target?:    string               (file path or command string)
-  rawTool?:   string               (original tool name: 'Bash', 'Edit', 'shell_command', etc.)
-
-  // kind=action or kind=result:
-  toolUseId?: string               (pairs action <-> result; Claude: block.id / block.tool_use_id;
-                                    Codex: payload.call_id)
-
-  // kind=result:
-  result?:    string               (truncated to 2000 chars)
-
-  // session_start always; other events when source provides it:
-  cwd?:       string               (Claude: per-line, drifts mid-session; Codex: session_meta only)
+  timestamp:  string | null          (ISO 8601; null e.g. Aider)
+  sourceSeq:  number                 (monotonic PER FILE, resets to 0 per file;
+                                      one raw line may emit several)
+  role:       'user'|'assistant'|'system'
+  kind:       'session_start'|'message'|'thinking'|'action'|'result'
+  text?:      string                 (message/thinking)
+  action?:    'read_file'|'write_file'|'edit_file'|'run_command'|'search'|'task'|'other'
+  target?:    string                 (file path / command / task description)
+  rawTool?:   string                 (original tool name)
+  toolUseId?: string                 (pairs action <-> result)
+  result?:    string                 (truncated to 2000 chars)
+  cwd?:       string
 }
 ```
 
-### Three format-review fixes applied (from `format-review.md`)
-
-**Fix 1 — Duplicate `cwd` declaration.** The original format declared `cwd` under `kind === 'session_start'` AND again under "available on any kind." Collapsed to one optional field with a comment explaining per-agent semantics. Minor, but proved the interface hadn't been typechecked.
-
-**Fix 2 — `sourceSeq` scope undefined.** Originally described as "monotonic per-event counter" but examples showed both Claude and Codex resetting to 0 — it's per-file, not global. Per-file is correct (global is meaningless across concurrent sessions), but the merge comparator was `(timestamp, sourceSeq)`, which jitters when two concurrent sessions collide on same-second timestamps. Fixed to `(timestamp, agent, sessionId, sourceSeq)` — `sessionId` scope makes `sourceSeq` a real tiebreaker. Implemented in `compareEvents()`.
-
-**Fix 3 — Thinking buried in text with `[Thinking]` markers.** Every other field is structural; `[Thinking]` markers are structure encoded as a string. Display would have to string-match to know what it's rendering — that's parsing a raw format in disguise. Made `kind: 'thinking'` a first-class event type. Claude adapter emits it from `block.type === 'thinking'` blocks. This is the most important distinction for a nervous non-technical watcher (deliberation vs. speech).
-
-### Merge comparator
-
-```js
-// Sort key: (timestamp, agent, sessionId, sourceSeq)
-// Null timestamps sort last.
-function compareEvents(a, b) { ... }
-```
-
-### Tool normalization
-
-`TOOL_ACTION_MAP` in `event.js` maps raw tool names to normalized verbs:
-- Claude: `Read` -> `read_file`, `Write` -> `write_file`, `Edit` -> `edit_file`, `Bash` -> `run_command`, `Grep`/`Glob` -> `search`, `Agent`/`Task` -> `task`
-- Codex: `shell_command`/`exec_command` -> `run_command`, `apply_patch` -> `edit_file`, `write_stdin` -> `other`
-- Cursor (anticipated): `read_file`/`write_file`/`edit_file`/`run_command` -> themselves
-
-`normalizeToolCall(rawName, input)` extracts `target` from input fields: `file_path`, `command`, `cmd`, `path`, `pattern`, `query`. Special case: `apply_patch` extracts target from `*** Update File: <path>` inside the patch string.
-
-### Design note: `role: 'user'` on `kind: 'result'`
-
-Results genuinely arrive on user lines in Claude's format. Semantically odd (the user didn't "do" that), but faithful to the source. Fine for v1 structural display. Flagged for revisit when translation lands.
+**`sourceSeq` gotcha:** it resets per file, so it is unique only WITHIN a
+session. Anything keying across sessions must use `sessionId + sourceSeq`
+(learned the hard way — see the All-Agents fix in §6).
 
 ---
 
-## 5. Adapter status
+## 5. Sub-agents, background tasks, and delegation (important — was the main confusion)
 
-### Claude Code adapter — DONE, TESTED
+Claude emits a **`queue-operation` line with `operation: 'enqueue'`** whenever it
+launches an async job. The linking info is **XML embedded inside the `content`
+string** (NOT top-level fields):
 
-**File:** `main/adapters/claude.js` (290 lines)
+```
+<task-notification><task-id>a0a1…</task-id><tool-use-id>toolu_…</tool-use-id>…
+```
 
-**Tested against:** 91 real Claude Code sessions from `~/.claude/projects/` on the dev machine.
+- `claude.js` parses this → `subagentLinks[toolUseId] = 'agent-' + taskId`.
+- If a session file **`agent-<taskId>.jsonl`** exists (under `<parent>/subagents/`) → it's a **real sub-agent** (own thread, own `parentSessionId`).
+- If it does **not** exist → it's a **background task** (async shell command; same agent, no thread).
 
-**Results:**
-- 22,025 total events produced
-- 8,242 actions, 8,231 results, 11 orphan actions (actions with no matching result — real, e.g. interrupted tool calls)
-- `kind: 'thinking'` events correctly emitted from `block.type === 'thinking'` blocks
-- Content polymorphism handled (bare string for user prompts, array for assistant)
-- System messages correctly skipped (continuation markers, request interrupts, hook feedback, XML system envelopes)
-- Truncation detection implemented per Correction C from PROMPT.md
+`classifyAction()` uses exactly this: linked + session exists → delegation;
+linked + no session → background; else → foreground.
 
-**Key functions:**
-- `getProjectsDir()` — resolves Claude projects dir with env overrides (`CLAUDE_PROJECTS_DIR`, `CLAUDE_CONFIG_DIR`)
-- `discoverSessions(projectsDir)` — finds `.jsonl` files, skips `agent-*` subagent files
-- `parseLine(line, sessionId, seq)` -> `{ events: WatchdogEvent[], nextSeq: number }`
-- `isTruncatedWrite(lastLine, buf)` — Correction C: non-empty + invalid JSON + no trailing newline = truncated
+**On the dev machine right now:** 5 real sub-agents across 2 parents —
+`1642612b…` ("reviw the code in this folder", 2 helpers) and `c836d5ad…`
+("hello hello", 3 helpers). Everything else's "tasks" are background shell jobs.
 
-### Codex adapter — WRITTEN, NOT TESTED
-
-**File:** `main/adapters/codex.js` (253 lines)
-
-**Written against:** Reference in `watchdog-reference/parser/codex.go` and 6 test fixtures in `watchdog-reference/parser/testdata/codex/`.
-
-**Not yet tested against fixtures.** This is the immediate next step.
-
-**Key differences from Claude handled:**
-- Top-level `type` is always `session_meta`, `response_item`, or `event_msg` (not `user`/`assistant`)
-- Role lives at `payload.role`, not top-level `type`
-- Actions are `payload.type === 'function_call'` with `call_id` (not `tool_use` with `id`)
-- Results are `payload.type === 'function_call_output'` with `call_id`
-- `arguments` polymorphism: JSON-encoded string OR native object (both handled)
-- No `uuid`/`parentUuid` — no DAG to resolve
-- `session_meta` carries `cwd` + session `id` as a dedicated opening line -> `kind: 'session_start'`
-- Also handles `custom_tool_call` / `custom_tool_call_output` payload types
-
-**Key functions:**
-- `getSessionsDirs()` — `~/.codex/sessions/` + `~/.codex/archived_sessions/` (env: `CODEX_SESSIONS_DIR`)
-- `discoverSessions(sessionsDirs)` — walks YYYY/MM/DD directory structure + flat archived files
-- `parseLine(line, sessionId, seq)` -> `{ events: WatchdogEvent[], nextSeq: number, sessionId: string }` (sessionId can be overridden by `session_meta`)
-
-### Not yet built
-
-- **Cursor** — `~/.cursor/projects/`, file-based. Reference: `cursor.go` + 3 related files. No test fixtures in reference — must verify against real machine.
-- **Aider** — Markdown format (`.aider.chat.history.md`), not JSONL. No default discovery dir (env `AIDER_DIR` only). No per-event timestamps. The hardest Event-format test.
-- **Antigravity** — v1.1, deferred. SQLite + AES decryption + undocumented protobuf. Multi-week port.
-
-### Watcher integration status
-
-`main/watcher.js` currently only watches Claude's `projectsDir`. The Codex adapter is **not yet wired into** `watcher.js` or `electron.js`. Both files currently hardcode Claude-only paths and imports.
+The BroadView/dome builds its sub-agent tree from **`parentSessionId`** (reverse
+link from the file path), independent of `subagentLinks` (the forward link used
+by the delegation bubble).
 
 ---
 
-## 6. Open threads / unresolved questions
+## 6. What was done this session (branch `fix/result-pairing-and-agent-identity`)
 
-### Pre-Codex checks (from `pre-codex-checks.md`)
+1. **`0591474` fix:** All-Agents result **mispairing** (keyed by `sourceSeq`
+   alone across sessions → collisions) + **live session metadata** was silently
+   dropped. Extracted `main/session-parse.js` so the watcher and initial-load
+   share one parse/dedup/metadata implementation; `/rename`, sub-agent links,
+   and continuation now apply live. `/rename` is now authoritative over the
+   auto-derived name.
+2. **`c943d4e` refactor:** consolidated `AGENT_COLORS`/`AGENT_CODES` (were
+   copy-pasted in 8 files) into `utils/agentIdentity.js`. Added `dev:vite` npm
+   script + `.claude/launch.json`.
+3. **`ed72dcf` fix:** **sub-agent detection** (parse the `<task-notification>`
+   XML — previously read non-existent top-level fields, so 0 links; now 34
+   links / 10 sessions) + **All-Agents "extremely buggy"** root cause =
+   duplicate React keys from **double-ingestion** (StrictMode double-loads;
+   ingest had no dedup). Fixed with idempotent ingest (`seenSeqs`); also fixed
+   chats showing duplicated messages. Filter to renderable events before
+   slicing so headers don't duplicate/vanish. `DelegationBadge` (and later all
+   delegations) only navigate when the target session exists.
+4. **`d094f68` feat:** **All-Agents = per-day chat + history.** Sidebar lists
+   days under "All agents" (Today is live). Feed shows one day at a time with
+   prev/next navigation. Also skip `<ide_*>` envelopes in session naming.
+5. **`6122c3e` feat:** **plain-English narration of every action** +
+   **detail-on-demand**. `actionClassify.js` + `narrateAction()`. `ActionCard`
+   became an expandable message. `DelegationBadge` retired (unified into
+   ActionCard). `claude.js` derives the delegation description so the helper
+   line says what was handed off.
+6. **`faa4deb` style:** action messages rendered as **iMessage-style bubbles**;
+   unified all bubbles on Apple radii (incoming tail bottom-left; outgoing =
+   solid marigold, white text, tail bottom-right).
 
-Two suspicious numbers were flagged before the Codex adapter could be built:
-
-**Check 1: "621 actions, 621 results is suspicious"**
-
-The concern: if orphan tool calls exist (proven by `tool_call_pending.jsonl`), why do counts match exactly? Either no orphans appeared in this sample, or something is fabricating results to balance the ledger.
-
-**Prior session's answer:** The 621/621 was from a single session. Across all 91 sessions the real numbers are **8,242 actions / 8,231 results** with **11 orphan actions** (actions with `toolUseId` that have no matching result). Zero orphan results (results with no matching action). The single session happened to have 0 orphans — genuine coincidence, not a bug.
-
-*Status: Answered in the prior session. The code was not modified — no fabrication bug exists. However, these numbers were reported conversationally and are not persisted in a test or log file. Re-verification is cheap (re-run the validation script against live sessions) if confidence is needed.*
-
-**Check 2: "1936 lines -> 1521 events, 415 skipped doesn't decompose"**
-
-The concern: the earlier line-type census counted 238 non-user/assistant lines, leaving ~1698 user+assistant lines. But multi-block lines expand (one line can emit 3 events). So 1698 lines should produce *more* events, not fewer (1521).
-
-**Prior session's answer:** The 415 decomposes as:
-- 238 type skips (attachment, file-history-snapshot, system, queue-operation, permission-mode, last-prompt)
-- 13 system message skips (user lines matching `isSystemMessage()` patterns)
-- 1 empty user content skip
-- 164 empty thinking block skips (`block.type === 'thinking'` with empty `thinking` field — Claude emits `thinking(len=0)` blocks)
-- 1 empty line skip
-- **Total: 417 non-event lines** (slight overcounting due to the multi-block expansion producing 1 extra event from 1520 event-producing lines)
-
-*Status: Same as above — answered conversationally, not persisted. The decomposition makes mechanical sense.*
-
-### The Codex validation test
-
-Per `pre-codex-checks.md`, the real test is NOT "does the Codex adapter work." It is: **did building it force any change to `main/event.js`, `src/components/EventFeed.jsx`, or `preload.js`?**
-
-Pre-Codex checksums were captured:
-```
-main/event.js:                ad57485d87716d6dbc84bddabd0cba7fb89aaa0580c2e4cd7e827e4b27f23981
-src/components/EventFeed.jsx: 4ad5893792b6c62c7d9b4f944c64734a01fe90f0425ce3081d8ef70ee02e775a
-preload.js:                   fde0888a5b61127279d0232b016418b7eb66a07c64101851da9aa26468ff5d66
-```
-
-**These have not yet been verified post-Codex.** The Codex adapter was written; the checksums were not compared. This is the single most important pending verification.
-
-### Other open items
-
-- **`role: 'user'` on `kind: 'result'`** — flagged in format-review.md as semantically odd. Leave for v1, revisit at translation phase.
-- **Cursor has no test fixtures** in the reference — must be verified against a real Cursor installation.
-- **Aider has no default discovery directory** and no per-event timestamps — hardest adapter to build correctly.
+Every change verified against the real-data snapshot in a browser; builds clean.
 
 ---
 
-## 7. The watchdog-reference material
+## 7. Open threads / next steps (for planning)
 
-### What it is
+**Product / UX (the active design conversation):**
+- **Within-day header density:** even scoped to one day, concurrent sessions
+  still interleave event-by-event → many session headers on a busy day. Decision
+  offered but not made: keep strict chronological vs. **group each session's run
+  together**. This is the top open UX question.
+- **Tone pass** on message/thinking copy so the whole feed reads in one warm voice.
+- **"N sub-agents" marker** on a parent session's header/sidebar row, so sessions
+  with helpers are findable without opening the dome.
+- Consider surfacing a sub-agent's *own* progress inline in the parent thread
+  (currently you must click into the helper thread).
 
-A pruned extract of **AgentsView** (github.com/kenn-io/agentsview, MIT, (C) 2026 Kenn Software LLC). AgentsView is a Go + Svelte + SQLite analytics engine for session intelligence — 26MB, 50+ agents, full-text search, token-cost reports. We extracted ~500KB of the parts we need: per-agent parser source, test fixtures, and the file watcher pattern.
-
-**It is a read-only answer key, not a dependency.** Never imported, never vendored. Read it to learn where each tool writes sessions and what those files contain, then write lean readers in our own stack (Electron + React + Node.js).
-
-### What's in it
-
-```
-watchdog-reference/
-  PROMPT.md                          Build prompt with 6 corrections to the handoff spec
-  DESIGN.md                         Their design approach (context only)
-  parser/
-    types.go                         THE registry: every agent's paths, env overrides, flags
-    claude.go + claude_provider.go   Claude Code parser (answer key for edge cases)
-    codex.go + codex_provider.go     Codex parser
-    codex_cursor.go                  Shared Codex/Cursor logic
-    cursor.go + cursor_provider.go + cursor_paths.go + cursor_attribution.go
-    aider.go + aider_provider.go
-    content.go, discovery.go, capabilities.go
-    antigravity-v1.1/                5 files — DO NOT OPEN in v1
-    testdata/
-      claude/valid_session.jsonl     Real Claude session fixture (4 lines)
-      claude/truncated.jsonl         Truncation edge case
-      claude/tool_call_pending.jsonl Orphan tool_use (in-flight tool call)
-      codex/*.jsonl                  6 Codex fixtures (see below)
-      aider/myrepo/.aider.chat.history.md   Real Aider sample (markdown)
-  watch/sync_watcher.go              fsnotify + batching + overflow pattern
-```
-
-**Codex fixtures (6 files):**
-- `standard_session.jsonl` — basic session with session_meta + messages
-- `function_calls.jsonl` — function call + output pairs
-- `fc_args_1.jsonl` — arguments as JSON-encoded string (`"{\"cmd\":\"rg --files\"}"`)
-- `fc_stdin.jsonl` — arguments as native object (`{"chars":"yes\n"}`)
-- `fc_args_2.jsonl` — apply_patch with native object arguments
-- `blockquotes_session.jsonl` — event_msg + response_item mix
-
-### Path discrepancy
-
-Two copies exist in Downloads:
-
-1. **Directory:** `C:\Users\aarav\Downloads\watchdog-reference\watchdog-reference\` — note the double nesting. Actual files are at `watchdog-reference\watchdog-reference\parser\...`.
-2. **Zip:** `C:\Users\aarav\Downloads\watchdog-reference.zip` — the original archive.
-
-The directory is the extracted zip. The double nesting (`watchdog-reference/watchdog-reference/`) is an artifact of extraction. Both contain the same content. Use the directory for reads; the zip is the canonical archive.
-
-**Canonical fixture paths:**
-```
-C:\Users\aarav\Downloads\watchdog-reference\watchdog-reference\parser\testdata\codex\*.jsonl
-C:\Users\aarav\Downloads\watchdog-reference\watchdog-reference\parser\testdata\claude\*.jsonl
-```
+**Engineering:**
+- **Other adapters unverified** against real installs (codex/cursor/aider/
+  antigravity) — only Claude is installed on the dev machine.
+- **Efficiency** (from the initial code review, still open): watcher re-reads the
+  whole file on each change; startup double-parses every file (watcher priming +
+  get-initial-events). Fine at current scale.
+- **`scripts/check-format-stability.js` baselines are STALE** (were already red
+  before this session; not maintained). `event.js`/`preload.js`/`EventFeed.jsx`
+  are byte-identical to their committed HEAD, but don't match the gate's old
+  hashes. Decide whether to rebaseline or retire the gate.
+- **Branch not pushed**; no PR yet.
 
 ---
 
-## 8. Immediate next steps (priority order)
+## 8. How to run it
 
-1. **Test the Codex adapter against all 6 fixtures.** Parse every line in each fixture through `codex.parseLine()`, verify events are correct (right kinds, roles, actions, targets, toolUseIds, sessionId override from session_meta, arguments polymorphism).
+**Real app (Electron, live data):**
+```
+npm install
+npm run dev          # Vite on :5174 + Electron window with real ~/.claude data
+```
 
-2. **Verify the 3 checksum files are byte-identical.** Compute SHA256 of `main/event.js`, `src/components/EventFeed.jsx`, and `preload.js` and compare against the pre-Codex checksums above. If they match, the Event format held. If they don't, that's the finding — more valuable than a working adapter.
+**Browser review mode (snapshot, no Electron):** there is currently
+**uncommitted dev-only scaffolding** used to review the UI in a plain browser
+(a browser can't read `~/.claude`, so it loads a captured snapshot):
+- `src/devMock.js` — installs a mock `window.watchdog` from `public/__devdata.json`
+- a guarded block in `src/main.jsx` (`import.meta.env.DEV && !window.watchdog`)
+- `public/__devdata.json` — snapshot generated by a scratch script that runs the
+  Claude adapter over `~/.claude` and writes `{ events, sessionMeta }`
+```
+npm run dev:vite     # Vite only, on :5174 → open http://localhost:5174
+```
+This scaffolding is **not committed** and is **snapshot-only (not live)**. It
+should be removed (or promoted to a proper dev fixture) before the branch is
+finalized. The real product path is Electron.
 
-3. **Wire Codex into `watcher.js` and `electron.js`.** Currently both files only import and use `main/adapters/claude.js`. The watcher needs to also watch `~/.codex/sessions/` and `~/.codex/archived_sessions/`, route `.jsonl` files from those dirs through the Codex adapter's `parseLine()`, and merge both agents' events into the single stream sent over IPC.
-
-4. **Build the Cursor adapter** against `cursor.go` reference (no fixtures — must verify against a real Cursor installation if available).
-
-5. **Build the Aider adapter** against `aider.go` reference (markdown format, no per-event timestamps, no default discovery dir).
-
-6. *(v1.1, separate task)* Antigravity adapter.
+**Stack:** Electron 41, Vite 8 + React 18 (plain JS, JSDoc typedefs), chokidar 4,
+@tabler/icons-react, Inter/JetBrains Mono/Fraunces fonts. Node v20 on dev machine
+(some non-blocking engine warnings). No TypeScript.
 
 ---
 
-## Stack
+## 9. Conventions & gotchas
 
-| Layer | Tech | Notes |
-|---|---|---|
-| Desktop shell | Electron 41 | Matches Chintu exactly |
-| Bundler | Vite 8 + `@vitejs/plugin-react` | Dev port 5174, `base: './'` |
-| Frontend | React 18 | Plain JS, no TypeScript |
-| File watching | chokidar 4 | Replaces fsnotify from Go reference |
-| Fonts | Inter + JetBrains Mono | `@fontsource/*` packages |
-| Packaging | electron-builder | NSIS (Win), DMG (Mac), AppImage/deb (Linux) |
-| Dev tooling | concurrently + wait-on | Same as Chintu's dev script |
-
-**No TypeScript.** Plain JS throughout, with JSDoc typedefs in `event.js`.
-
-**Node version note:** Dev machine runs Node v20.20.1. `@electron/rebuild` and `node-abi` warn about requiring Node >= 22.12.0, but the build succeeds. These are non-blocking warnings.
+- **Plain JS + JSDoc**, no TypeScript.
+- **Agent identity colors/codes** are fixed & theme-independent → `utils/agentIdentity.js` only. Everything else themes via CSS variables in `src/styles/variables.css` (warm "marigold" dark + light).
+- **Warm, plain, non-technical voice** everywhere. Relative time. Lowercase status labels. Never show raw field names (toolUseId, sessionId, kind) in the UI.
+- `sourceSeq` is per-file — key cross-session things by `sessionId + sourceSeq`.
+- StrictMode double-invokes effects in dev — ingest must stay idempotent.
+- The old CONTEXT said "watcher is Claude-only / Codex untested" — that's stale; the watcher wires all 5 adapters.
