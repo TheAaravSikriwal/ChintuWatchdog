@@ -70,17 +70,20 @@ export default function ActionCard({
   }
 
   return (
-    <div className={`msg-action msg-action-${kind}`}>
-      <div className={`msg-action-line${hasDetail ? ' clickable' : ''}`} onClick={toggle}>
+    <div className={`bubble-row bubble-row-agent msg-action msg-action-${kind}`}>
+      <div
+        className={`msg-action-bubble${hasDetail ? ' clickable' : ''}`}
+        onClick={toggle}
+      >
+        <span className="msg-action-text">{line}</span>
+        {tag && <span className={`msg-tag msg-tag-${tag}`}>{tag}</span>}
+        {status}
         {hasDetail && (
           <IconChevronRight
             size={13} stroke={2}
             className={`msg-action-caret${expanded ? ' open' : ''}`}
           />
         )}
-        <span className="msg-action-text">{line}</span>
-        {tag && <span className={`msg-tag msg-tag-${tag}`}>{tag}</span>}
-        {status}
       </div>
 
       {canOpenHelper && (

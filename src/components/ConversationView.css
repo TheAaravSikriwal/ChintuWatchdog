@@ -263,24 +263,24 @@
 
 .bubble-agent {
   background: var(--surface-1);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
+  border-radius: 18px 18px 18px 5px;
+  padding: 8px 14px;
   max-width: 78%;
   font-size: var(--fs-md);
-  line-height: 1.55;
+  line-height: 1.4;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
 .bubble-user {
-  background: var(--bg-accent);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
-  padding: var(--space-3) var(--space-4);
+  background: var(--fill-accent);
+  border-radius: 18px 18px 5px 18px;
+  padding: 8px 14px;
   max-width: 78%;
   font-size: var(--fs-md);
-  line-height: 1.55;
-  color: var(--text-accent);
+  line-height: 1.4;
+  color: var(--on-accent);
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -295,54 +295,53 @@
 .bubble-thinking {
   background: var(--surface-1);
   border: 0.5px dashed var(--border-strong);
-  border-radius: var(--radius-xl);
-  padding: var(--space-3) var(--space-4);
+  border-radius: 18px 18px 18px 5px;
+  padding: 8px 14px;
   max-width: 78%;
   font-size: var(--fs-sm);
   font-style: italic;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: 1.4;
 }
 
-/* ── Action as a plain-English message ───────────────────────── */
+/* ── Action as an incoming iMessage-style bubble ─────────────── */
 .msg-action {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 2px 0;
+  gap: 3px;
 }
 
-.msg-action-line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  padding: 3px var(--space-2) 3px 0;
-  border-radius: var(--radius-md);
+.msg-action-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 82%;
+  background: var(--surface-1);
+  border-radius: 18px 18px 18px 5px;
+  padding: 8px 14px;
+  line-height: 1.4;
 }
 
-.msg-action-line.clickable {
+.msg-action-bubble.clickable {
   cursor: pointer;
+  transition: background var(--transition-fast);
 }
 
-.msg-action-line.clickable:hover {
-  background: var(--fill-ghost-hover);
+.msg-action-bubble.clickable:hover {
+  background: var(--surface-2);
 }
 
 .msg-action-caret {
   color: var(--text-muted);
   flex-shrink: 0;
-  transform: translateY(2px);
   transition: transform var(--transition-fast);
 }
 
 .msg-action-caret.open {
-  transform: translateY(2px) rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .msg-action-text {
   font-size: var(--fs-md);
   color: var(--text-secondary);
-  line-height: 1.5;
 }
 
 /* Delegations read a touch more prominently — a helper is a real actor. */
@@ -382,7 +381,7 @@
 
 .msg-open-helper {
   align-self: flex-start;
-  margin-left: 18px;
+  margin-left: 14px;
   background: transparent;
   border: none;
   padding: 0 0 2px;
@@ -396,7 +395,9 @@
 
 /* ── Detail on demand — the "glass into everything" ──────────── */
 .msg-detail {
-  margin: 2px 0 4px 18px;
+  align-self: stretch;
+  max-width: 92%;
+  margin: 2px 0 4px 14px;
   border-left: 2px solid var(--border-strong);
   padding-left: var(--space-3);
   display: flex;
