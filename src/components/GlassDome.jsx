@@ -1,13 +1,6 @@
 import { useMemo, useState } from 'react'
 import { computeSessionStatus, STATUS_COLORS } from '../utils/sessionStatus'
-
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
+import { AGENT_COLORS } from '../utils/agentIdentity'
 
 /**
  * GlassDome — a warm translucent glass orb in the bottom-right corner.

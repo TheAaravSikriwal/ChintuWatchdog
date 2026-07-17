@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
 import { computeSessionStatus, STATUS_LABELS, STATUS_COLORS } from '../utils/sessionStatus'
 import { eventPreview } from '../utils/plainEnglish'
 import { buildResultMap } from '../utils/resultPairing'
@@ -13,22 +14,6 @@ import AllAgentsView from './AllAgentsView'
 import GlassDome from './GlassDome'
 import BroadView from './BroadView'
 import './ConversationView.css'
-
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
-
-const AGENT_CODES = {
-  'claude-code': 'CL',
-  'cursor': 'CX',
-  'codex': 'CO',
-  'antigravity': 'AG',
-  'aider': 'AI',
-}
 
 const RENDER_CAP = 500
 

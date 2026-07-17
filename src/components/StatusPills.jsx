@@ -1,22 +1,7 @@
 import { useMemo } from 'react'
 import { computeSessionStatus, STATUS_COLORS } from '../utils/sessionStatus'
 import { eventPreview } from '../utils/plainEnglish'
-
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
-
-const AGENT_CODES = {
-  'claude-code': 'CL',
-  'cursor': 'CX',
-  'codex': 'CO',
-  'antigravity': 'AG',
-  'aider': 'AI',
-}
+import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
 
 const ACTIVE_STATUSES = new Set(['working', 'waiting', 'idle', 'stale'])
 

@@ -1,24 +1,9 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { computeNetworkLayout } from '../utils/networkLayout'
+import { AGENT_COLORS, AGENT_CODES } from '../utils/agentIdentity'
 import { computeSessionStatus, STATUS_LABELS, STATUS_COLORS } from '../utils/sessionStatus'
 import { eventPreview } from '../utils/plainEnglish'
 import { AGENT_DISPLAY_NAMES } from '../utils/sessionName'
-
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
-
-const AGENT_CODES = {
-  'claude-code': 'CL',
-  'cursor': 'CX',
-  'codex': 'CO',
-  'antigravity': 'AG',
-  'aider': 'AI',
-}
 
 const ACTION_ICONS = {
   read_file: '📄',

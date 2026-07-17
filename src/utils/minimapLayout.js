@@ -1,12 +1,6 @@
 // minimapLayout.js — compute node + line positions for the GlassDome minimap
 
-const AGENT_COLORS = {
-  'claude-code': '#EA8C1D',
-  'cursor': '#2563EB',
-  'codex': '#16A34A',
-  'antigravity': '#7C3AED',
-  'aider': '#0891B2',
-}
+import { AGENT_COLORS } from './agentIdentity'
 
 const SVG_W = 210
 const SVG_H = 70
